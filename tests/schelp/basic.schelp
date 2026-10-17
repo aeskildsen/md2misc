@@ -1,0 +1,24 @@
+SECTION::First section
+
+A paragraph with strong::bold::, emphasis::italic:: and code::inline code::. It has a literal colon pair like Foo\::bar, a table bar a \|| b and a double hash \## sign, and code::code\::with\::colons::.
+
+The same paragraph goes on, with "a quotation" and a back\slash.
+
+SUBSECTION::A subsection
+
+code::
+// A code block.
+(
+{ SinOsc.ar(440) * 0.1 }.play;
+)
+\::
+x = 1;
+::
+
+SUBSUBSECTION::A subsubsection
+
+teletype::
+print("not SuperCollider")
+::
+
+Last paragraph.

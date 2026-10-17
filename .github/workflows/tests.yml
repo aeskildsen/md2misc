@@ -1,0 +1,40 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # All tests against the installed package. Without sclang, the SCDoc tests are skipped.
+  python:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install ".[test]"
+      # From another folder, so that the tests import the installed package and not the checkout
+      - name: Test the installed package
+        working-directory: ${{ runner.temp }}
+        run: python -m pytest -p no:cacheprovider -o pythonpath=${{ github.workspace }}/tests ${{ github.workspace }}/tests
+
+  # The SCDoc tests with the SuperCollider of Ubuntu. They must not be skipped. The comparison of whole pages is
+  # skipped if this sclang is not the version in tests/schelp/SCLANG_VERSION.
+  scdoc:
+    runs-on: ubuntu-24.04
+    env:
+      MD2MISC_REQUIRE_SCLANG: "1"
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends supercollider-language
+      - run: python -m pip install ".[test]"
+      - run: python -m pytest -k schelp -rs

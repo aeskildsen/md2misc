@@ -1,0 +1,13 @@
+SECTION::Math
+
+Inline math, like math::\frac{a}{b}:: or math::x_1 + x_2::, is part of a line.
+
+A block of math:
+
+
+math::
+\int_0^{2\pi} \sin(x) \, dx = 0
+::
+
+
+Text after the math.

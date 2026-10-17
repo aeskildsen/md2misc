@@ -1,0 +1,130 @@
+\section{Øvelse: Brug af UGens}
+
+I denne øvelse øver man sig i at anvende, visualisere og modulere UGens.
+\subsection{Blip båt}
+
+Afspil følgende lyde med peak-amplitude på 0.1:
+
+            \begin{enumerate}
+            \item Sinustone med frekvens på 220 Hz.
+\item Savtakket bølgeform med frekvens på 100 Hz.
+\item En firkantet bølgeform med frekvens på 350 Hz. 
+            \end{enumerate}
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{SinOsc.ar(   ) * 0.1}.play;
+{     * 0.1}.play;
+{     * 0.1}.play;
+\end{minted}
+\caption{Oscillatorfrekvenser}
+\end{listing}
+\subsection{Visualisering af bølgeform}
+
+SuperCollider kan plotte lyd-outputtet i en graf. Dette viser eksempelvis outputtet fra en \mintinline{./sc_lexer.py:SuperColliderLexer}{SinOsc} og en \mintinline{./sc_lexer.py:SuperColliderLexer}{LFTri}, målt over et stardard-tidsrum på 10 millisekunder.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{[
+    SinOsc.ar(440),
+    LFTri.ar(440)
+]}.plot(0.010);
+\end{minted}
+\caption{Visualisering af bølgeform}
+\end{listing}
+
+Brug \mintinline{./sc_lexer.py:SuperColliderLexer}{{}.plot}-teknikken ligesom ovenfor til at overveje følgende spørgsmål:
+
+            \begin{enumerate}
+            \item Hvad er forskellen på \mintinline{./sc_lexer.py:SuperColliderLexer}{Pulse.ar(width: 0.5)} og \mintinline{./sc_lexer.py:SuperColliderLexer}{Pulse.ar(width: 0.1)}?
+\item Hvad er forskellen på \mintinline{./sc_lexer.py:SuperColliderLexer}{LFNoise0.kr(2)} og \mintinline{./sc_lexer.py:SuperColliderLexer}{LFNoise1.kr(2)}? 
+            \end{enumerate}
+
+Tip: Når vi skal visualisere LFO-UGens, der som her svinger ved 2 Hz, får vi ikke meget syn for sagen ved at plotte over de 10 millisekunder, der som udgangspunkt anvendes med \mintinline{./sc_lexer.py:SuperColliderLexer}{.plot}. Plot i stedet over fx 3 sekunder med \mintinline{./sc_lexer.py:SuperColliderLexer}{{}.plot(3)}.
+\subsection{Visualisering af frekvensspektrum}
+
+Vi kan vise SuperColliders lydlige output i frekvensdomænet med \mintinline{./sc_lexer.py:SuperColliderLexer}{s.freqscope;}
+
+Brug \mintinline{./sc_lexer.py:SuperColliderLexer}{s.freqscope} til at besvare følgende spørgsmål:
+
+            \begin{enumerate}
+            \item Hvad kendetegner overtonespektrene for de forskellige bølgeformer fra opgaven \textit{Blip båt} ovenfor?
+\item Hvad styrer bevægelse af musen fra venstre til højre i nedenstående eksempel? Samt: Hvad kan vi herudfra konkludere om UG'enen \mintinline{./sc_lexer.py:SuperColliderLexer}{Blip}? 
+            \end{enumerate}
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{ Blip.ar(220, MouseX.kr(1,50)) * 0.1 }.play;
+\end{minted}
+\caption{Undersøgelse af UGen'en Blip}
+\end{listing}
+
+Har du mange ekstra vinduer åbne (fx fra ovenstående øvelse med plots), kan de lukkes på én gang med \mintinline{./sc_lexer.py:SuperColliderLexer}{Window.closeAll}.
+\subsection{Modulation af lydstyrke (amplitude)}
+
+Anvend følgende UGens, [skaleret med method'en \mintinline{./sc_lexer.py:SuperColliderLexer}{.unipolar}](a-skalering.md), til at modulere amplituden i intervallet 0-1 for en savtakket bølgeform. Modulatorens frekvens vælges frit i intervallet 0-20 Hz.
+
+            \begin{enumerate}
+            \item \mintinline{./sc_lexer.py:SuperColliderLexer}{LFSaw} (savtakket bølgeform)
+\item \mintinline{./sc_lexer.py:SuperColliderLexer}{LFPulse} (firkantet bølgeform)
+\item \mintinline{./sc_lexer.py:SuperColliderLexer}{SinOsc} (sinusbølge) 
+            \end{enumerate}
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{Saw.ar *   }.play;
+\end{minted}
+\caption{Amplitudemodulation med LFO}
+\end{listing}
+\subsection{Modulation af tonehøjde (frekvens)}
+
+Når vi modulerer frekvens, er det typisk nødvendigt at justere modulatorens frekvens og outputrækkevidde. \mintinline{./sc_lexer.py:SuperColliderLexer}{.range} og \mintinline{./sc_lexer.py:SuperColliderLexer}{.exprange} er oplagte redskaber at styre en absolut modulation, og \mintinline{./sc_lexer.py:SuperColliderLexer}{.midiratio} (evt. kombineret med \mintinline{./sc_lexer.py:SuperColliderLexer}{.unipolar} eller \mintinline{./sc_lexer.py:SuperColliderLexer}{.bipolar}) er oplagt til at styre en relativ modulation af tonehøjde. Læs evt. nærmere herom i afsnittet om [skalering](a-skalering.md).
+
+Modulér frekvensen for en savtakket oscillator med følgende UGens og på følgende måder:
+
+            \begin{enumerate}
+            \item Rutsjebane
+\begin{enumerate} 
+ \item Brug \mintinline{./sc_lexer.py:SuperColliderLexer}{LFTri} som modulator.
+\item Tonens frekvens skal bevæge sig mellem 440 Hz og 880 Hz.
+\item Valgfri modulatorfrekvens under 20 Hz.
+\end{enumerate}
+\item Tonespring
+\begin{enumerate} 
+ \item Brug \mintinline{./sc_lexer.py:SuperColliderLexer}{LFPulse} som modulator.
+\item Tonens frekvens skal bevæge sig mellem 220 Hz og 330 Hz.
+\item Valgfri modulatorfrekvens under 20 Hz.
+\end{enumerate}
+\item Vibrato
+\begin{enumerate} 
+ \item Brug \mintinline{./sc_lexer.py:SuperColliderLexer}{SinOsc} som modulator.
+\item Tonens frekvens på 660 Hz skal moduleres 15 cent op og ned.
+\item Modulatorfrekvensen skal være 15 Hz.
+\end{enumerate}
+\item Tilfældige frekvenser
+\begin{enumerate} 
+ \item Brug \mintinline{./sc_lexer.py:SuperColliderLexer}{LFNoise0} som modulator.
+\item Tonens frekvens på 440 Hz skal moduleres i halvtonetrin op til en oktav op og ned.
+\item Modulatorfrekvensen skal være 8 Hz. 
+\end{enumerate}
+            \end{enumerate}
+
+Vælg selv en passende frekvens mellem 0 Hz og 20 Hz til modulatoren.
+
+\begin{listing}[H]
+\begin{minted}[highlightlines={2}]{./sc_lexer.py:SuperColliderLexer}
+{
+    var modulator =   ;
+    Saw.ar(modulator) * 0.1;
+}.play;
+\end{minted}
+\caption{Frekvensmodulation}
+\end{listing}
+\subsection{Bonusopgave: FM, AM, RM}
+
+Har du mod på at gå yderligere på opdagelse i modulationens potentialer, kan du med fordel dykke ned i nogle mere avancerede teknikker, hvor modulation på forskellig vis udgør kernen i klangdannelsen. Når modulation bevæger sig fra det lavfrekvente (under 20 Hz) til det hørbare frekvensbånd, sker der ganske interessante klanglige variationer.
+
+            \begin{enumerate}
+            \item Eksperimentér med eksemplerne på AM (Amplitude Modulation), RM (Ring Modulation) og FM (Frequency Modulation) fra kapitel 7 i Thor Magnussons \href{https://leanpub.com/ScoringSound/read\#leanpub-auto-chapter-7---modulation}{\textit{Scoring Sound}} \parencite*{magnusson2021}.
+\item Eksperimentér med eksemplerne på FM fra \href{https://www.youtube.com/watch?v=UoXMUQIqFk4\&list=PLPYzvS8A\_rTaNDweXe6PX4CXSGq4iEWYC\&index=22}{Eli Fieldsteels glimrende video om emnet}. Kildekoden fra videoen findes \href{https://github.com/elifieldsteel/SuperCollider-Tutorials/blob/master/full\%20video\%20scripts/21\_script.scd}{på github}. 
+            \end{enumerate}

@@ -1,0 +1,26 @@
+SECTION::Escaping
+
+Foo\::bar and code::a\::b:: and a \|| b and \## here, a lone # and | and a back\slash, a trailing backslash \
+
+Characters that HTML needs to escape: a < b > c & 100% ~ ^ { } [ ] and "double" quotes with 'single' ones.
+
+code::
+(
+var a = "a::b"; // two colons in a string
+a.postln;
+)
+\::
+||
+::
+
+code::
+// No language: SuperCollider.
+1 + 1
+::
+
+teletype::
+d = {"a": 1}
+\::
+::
+
+Closing paragraph with strong::bold text:: and emphasis::italic text::.

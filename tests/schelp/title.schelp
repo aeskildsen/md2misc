@@ -1,0 +1,11 @@
+TITLE::A title from the heading
+SUMMARY::A page whose title comes from the level 1 heading
+CATEGORIES::Tests, Headings
+
+DESCRIPTION::
+
+Text of the page.
+
+SECTION::A named section
+
+Text in a section.

@@ -1,0 +1,30 @@
+CLASS::Md2miscTestStructure
+SUMMARY::A test page with front matter, a description, a block from the caller and examples
+RELATED::Classes/SinOsc, Classes/Pbind
+CATEGORIES::UGens>Physical modelling, Tests
+
+DESCRIPTION::
+
+A description of the class, in strong::two:: short paragraphs.
+
+The second paragraph has code::inline code::.
+
+CLASSMETHODS::
+METHOD::ar, kr
+ARGUMENT::freq
+The frequency.
+ARGUMENT::mul
+The level.
+returns::An array of two channels.
+
+EXAMPLES::
+
+code::
+{ SinOsc.ar(440) * 0.1 }.play;
+::
+
+SECTION::References
+
+SUBSECTION::A source
+
+Author, A. (2026). emphasis::A title.::

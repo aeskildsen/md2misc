@@ -1,6 +1,17 @@
-# `md2tex` - a CLI to convert Markdown to TeX
+# `md2misc` - a CLI to convert Markdown to other formats
 
-`md2tex` is a simple but customizable markdown to TeX converter inspired by XSLT and functionnal programming. Rather than using fancy object oriented libraries, it locates elements of Markdown syntax using regular expressions and translates them into TeX syntax. It has only been tested with latin script so far.
+`md2misc` converts Markdown to other text formats. Rather than using fancy object oriented libraries, it locates elements of Markdown syntax using regular expressions and translates them into the target syntax. It has only been tested with latin script so far.
+
+Each output format is a *backend* with its own subcommand:
+
+| Backend | Subcommand | Status |
+|---|---|---|
+| TeX | `md2misc tex` | available |
+| SuperCollider help (schelp) | `md2misc schelp` | available: a whole document, with header and special sections; more constructs may follow |
+
+## Origin
+
+`md2misc` is derived from [`md2tex`](https://github.com/paulhectork/md2tex) by Paul Kervegan. The full history of `md2tex`, with the commits of both authors, is part of this repository's git history. See `NOTICE` for details. The TeX output is meant to stay identical to the output of `md2tex`.
 
 ---
 
@@ -10,75 +21,61 @@
   template
 - Reading Markdown from custom locations and writing a TeX file to a custom location
 - Several options for extra customization: numbered or unnumbered headers, document classes, etc. ...
-- Core functionality (converting Markdown to Tex) can be used in other Python scripts as a module
+- Core functionality (converting Markdown to TeX) can be used in other Python scripts as a module
 ---
 
 ## Commands / How to 
 
-The advantage of having a script focused on Markdown to TeX conversion is that you can get a lot of fine tuning and extra customization.
-
 ### Requirements
 
-The script relies on the [`minted`](http://tug.ctan.org/macros/latex/contrib/minted/minted.pdf)[^1] package,
-so this needs to be installed on your machine. This script has been tested on a Linux machine and should
-work on UNIX and affiliated systems. Theoritically, it should also run on Windows, although that has not
-been tested. You will need to tailor the below scripts if you use Windows.
+The TeX output relies on the [`minted`](http://tug.ctan.org/macros/latex/contrib/minted/minted.pdf) package for code blocks, so this needs to be installed on your machine. The tool has been tested on a Linux machine and should work on UNIX and affiliated systems. It has not been tested on Windows.
 
-[^1]: Website visited on 02.08.2022.
-
-The script produces LaTeX output which requires the use of a number of LaTeX packages, including:
+The TeX output requires a number of LaTeX packages, including:
 - csquotes
 
-### Automated installation (MacOS/GNU-Linux)
-An installation shell script has been written to make things easier.
-Simply clone the repo and launch the install !
+### Installation
+
+md2misc needs Python 3.10 or later. Its only dependency is `click`.
+
+With pipx, as a command line tool:
 
 ```bash
-git clone https://github.com/paulhectork/md2tex.git  # clone the repo
-cd md2tex  # move to the directory
-bash install.sh  # can also be used with other shells: zsh, ash...
+pipx install git+https://github.com/aeskildsen/md2misc
+md2misc tex path/to/file.md
 ```
 
-### Manual install
-If the above method doesn't work, a manual installation is just as easy:
+With pip, from a checkout of this repository:
 
 ```bash
-git clone https://github.com/paulhectork/md2tex.git  # clone the repo
-cd md2tex  # move to the directory
-python3 -m venv env  # create virtual env
-source env/bin/activate  # source it
-pip install -r requirements.txt  # install requirements
-pip install --editable .  # build the package
+pip install .
+md2misc tex path/to/file.md
 ```
 
 ### Base functionning
-This CLI should be used from the `md2tex` directory.
 ```bash
-source env/bin/activate  # get the proper env
-md2tex path/to/markdown/file.md --options
+md2misc tex path/to/markdown/file.md --options
 ```
 
-### Arguments and options
+### Arguments and options of `md2misc tex`
 
 #### Argument
 The only **compulsory argument** is the path to the markdown file that needs to be processed.
 - The file must finish with `.md` so that we're sure that a markdown file is being processed.
 
 #### Optional parameters
-As you can see below, there quite a few possibilities for fine-tuning. All of the below
-parameters are optional.
-- **`o`, `-output-path`**: give a specific path and filename to write the `.tex` file to?
-	- if none is provided, the output path defaults to `md2tex/output/input_filename.tex`
+All of the below parameters are optional.
+- **`-o`, `--output-path`**: give a specific path and filename to write the `.tex` file to?
+	- if none is provided, the output path defaults to `output/input_filename.tex` in the current folder
 	- if the output path contain directories that do not exist, the output will not be 
 	  written. Directories must be created manually beforehand.
     - if the extension of the output file is not `.tex`, a `.tex` extension will be added to the filename.
 - **`-c`, `--complete-tex-file`**: if provided, a complete TeX file will be created, with preamble and table of
   contents. 
-	- the default template used is `utils/template.tex`. For a custom template, see `-t` below.
+	- the default template is part of the package. For a custom template, see `-t` below.
 	- if not provided, only the body of the Markdown file will be converted. It will need to be included
 	  in another file with a premable.
 - **`-t`, `--custom-tex-template`**: the path to a custom TeX template to build a complete document from, instead
-  of the default template `utils/template.tex`.
+  of the default template.
 	- this argument must be used in conjunction with `-c` for an actual template to be used.
 	- a path to an existing template must be provided.
 	- this template must contain the string `@@BODYTOKEN@@`: this token will be replaced by the contents of the
@@ -94,69 +91,152 @@ parameters are optional.
 - **`-u`, `--unnumbered-headers`**: if this argument is provided, the TeX headers (`\chapter`, `section`...)
   will be unnumbered.
 	- by default, the headers are numbered.
+- **`-s`, `--stdout`**: write the TeX to standard output instead of a file. Warnings go to standard error.
+- **`-l`, `--minted-language`**: the language that `minted` uses for syntax highlighting (default `text`).
+- **`-O`, `--override-language`**: replace the language of every code block with the language from `-l`.
+	- in `md2tex` this option also used the short flag `-o`, which clashed with `--output-path`. In `md2misc` the short flag is `-O`.
 
 ### Command line help
 ```bash
-md2tex --help
+md2misc --help
+md2misc tex --help
 ```
 
 ---
 
 ## Examples
 
-Output TeX files and the PDFs (using `XeLaTeX`) can be seen in the `readme/` and `examples/` directory.
-- the `readme/` directory contains the canonical TeX and PDF documentation, produced by processing this README file.
-- the `examples/` directory contains additional examples, including different parameters used to process this file.
-- the script `readme_conversion.sh` allows to run a series of conversions and compilation of this file into different
-  TeX and PDF files.
-
-**Example 1** - the canonical `README.tex` file in the `README` dir:
-- a complete document is created (`-c`)
-- it uses the custom template (`-t`) `./readme/readme_article_template.tex`
-- the output is written (`-o`) to `./readme/README.tex`
-- the document created is an article (`-d article`)
-- the document uses unnumbered headers (`-u`)
+A complete article with unnumbered headers and the default template:
 ```bash
-md2tex README.md -c -t ./readme/readme_article_template.tex -o ./readme/README.tex -d article -u
+md2misc tex README.md -c -u -o README.tex
 ```
 
-**Example 2** - a partial TeX file to a custom output (`-o ./examples/README_partial_base.tex`) with default params
+A complete book with a custom template and numbered headers:
 ```bash
-md2tex README.md -o ./examples/README_partial_base.tex
+md2misc tex README.md -c -t my_template.tex -d book -o README_book.tex
 ```
 
-**Example 3** - a complete document of class `book` using a custom template with unnumbered headers
+A partial TeX file (body only), printed to the terminal:
 ```bash
-md2tex README.md -c -t ./readme/readme_book_template.tex -o ./examples/README_book.tex -d book -u
+md2misc tex README.md -s
 ```
 
-**Example 4** - a complete document of class `article` with a custom template and numbered (default) headers
-```bash
-md2tex README.md -c -t ./readme/readme_article_template.tex -o ./examples/README_article_numbered.tex
-```
-
-**Example 5** - a complete document of class `book` with default template and numbered headers
-```bash
-md2tex README.md -c -o ./examples/README_article_default_template_numbered.tex
-```
-
-**Example 6** - a complete document of class `article` with default template and default params
-```bash
-md2tex README.md -c -o ./examples/README_book_default_template.tex -d book
-```
+Example outputs of the original `md2tex` (TeX and PDF files made from the `md2tex` README) are in the git history of this repository.
 
 ## Usage in other Python scripts
 
 The core functionality (conversion from Markdown to TeX) can be used in other Python scripts like this:
 ```python
-from md2tex import convert
+from md2misc import convert
 
 markdown = "# A title"
 tex = convert(markdown)
 print(tex)  # Prints: \section{A title}
 ```
 
-The `convert` function takes two optional, additional arguments corresponding to the command line arguments --unnumbered-headers, and --document-class.
+The `convert` function takes four optional, additional arguments corresponding to the `tex` command line arguments: `unnumbered` (`--unnumbered-headers`), `document_class` (`--document-class`), `minted_language` (`--minted-language`) and `override_language` (`--override-language`).
+
+## The schelp output
+
+`md2misc schelp in.md` writes a SuperCollider help document (the markup that SCDoc renders to HTML). The options are `-o`/`--output-path`, `-s`/`--stdout`, `-m`/`--meta KEY=VALUE` and `-i`/`--insert NAME=FILE`. In Python: `from md2misc import convert_schelp`.
+
+### The header
+
+The header tags come from three places:
+
+1. The front matter at the start of the Markdown file, a block of `key: value` lines between two lines with `---`. The keys are `title`, `class`, `summary`, `related` and `categories`. `related` and `categories` take a list: `[a, b]`, lines with `- item` below the key, or a string with commas.
+2. The first level 1 heading (`# Title`). It gives the `TITLE::` if the front matter has no `title` and no `class`; otherwise it is left out. A second level 1 heading stops the conversion.
+3. The `--meta KEY=VALUE` options (the `metadata` argument in Python). A value given here takes the place of the front matter value with the same key. Use this for a value that the Markdown file does not know, like the class name `--meta class=PhysWoodbar`.
+
+The header is `CLASS::`, `TITLE::` (both are written if both are given), `SUMMARY::`, `RELATED::` and `CATEGORIES::`, in this order. In a value, `::` gets a backslash; `##` and `||` stop the conversion, because SCDoc cannot show them in a header line. A file with no front matter, no level 1 heading and no `--meta` gives the body of the document only. A header with no title and no class stops the conversion.
+
+### Special sections and insertion points
+
+A level 2 heading `## Description` gives `DESCRIPTION::` and `## Examples` gives `EXAMPLES::`. Any other level 2 heading gives `SECTION::`.
+
+A line `<!-- md2misc: NAME -->` is an insertion point. Markdown viewers do not show the comment. `--insert NAME=FILE` (the `insertions` dictionary in Python) puts the schelp text of FILE in its place, as it is. This is how a program that writes the `CLASSMETHODS::` section puts it between the description and the examples. An insertion point that gets no text gives nothing; text for a name that the file does not have stops the conversion.
+
+### The body
+
+| Markdown | schelp |
+|---|---|
+| `## Heading` | `SECTION::Heading` (`## Description` and `## Examples` are special, see above) |
+| `### Heading` | `SUBSECTION::Heading` |
+| `#### Heading` and deeper | `SUBSUBSECTION::Heading` |
+| `**bold**` | `strong::bold::` |
+| `*italics*` | `emphasis::italics::` |
+| `` `code` `` | `code::code::` |
+| a fenced code block with no language, or `supercollider`, `sc`, `scd`, `sclang` | `code::` block |
+| a fenced code block in another language | `teletype::` block |
+| `- item` and nested items | `LIST::` with `## item` lines, nested `LIST::` |
+| `1. item` and nested items | `NUMBEREDLIST::` |
+| `Term` and `:   definition` | `DEFINITIONLIST::` with `## term` and `\|\| definition` |
+| `[text](https://example.com)` | `link::https://example.com##text::` |
+| `[text](sc:Classes/SinOsc)`, `[text](sc:Classes/SinOsc#*ar)` | `link::Classes/SinOsc##text::`, `link::Classes/SinOsc#*ar#text::` (no label if the text is the name of the page) |
+| `[^1]` and `[^1]: note` | `footnote::note::` at the place of the mark |
+| `$x$` | `math::x::` |
+| `$$` block `$$` | `math::` block |
+| `> [!NOTE]` and the lines after it | `note::` block (`TIP` and `IMPORTANT` too) |
+| `> [!WARNING]` and the lines after it | `warning::` block (`CAUTION` too) |
+
+In text, `::`, `##` and `||` get a backslash, because SCDoc takes them as markup. In code, only a `::` inside inline code and a line with `::` alone in a code block get a backslash. If the text of an inline tag (bold, italic, inline code, a link, inline math, a footnote) ends with `:` or `\`, a space comes before the end-tag `::`, because SCDoc takes the character as part of the end-tag. SCDoc does not show the space.
+
+Three Markdown rules of the schelp output are those of CommonMark and Pandoc, not those of the TeX output:
+
+- A heading needs a space after the `#` characters: `#1 priority` at the start of a line is text.
+- Inline math follows the rules of Pandoc: no space after the first `$` and before the second `$`, and no digit after the second `$`. Thus `$5 and $10` is text. `\$` is a dollar sign.
+- A code block can be in an alert: the `>` marks are not part of the code.
+
+A Markdown construct that has no schelp form stops the conversion: the command shows an error that names the file, the line and the construct, and exits with a non-zero status. This holds for:
+
+- a second level 1 heading, and a heading underlined with `=` or `-`
+- block quotes that are not alerts
+- links that are not `http` URLs or `sc:` links, links in `<` and `>`, a `#` in the text of a link (SCDoc splits a link at each `#`; a link without a label, where the text is the address or the name of the page, is fine), and more than one `#` in the address of a link
+- citations, images and audio files, tables, HTML tags and HTML comments (other than insertion points), `<br>` tags
+- horizontal rules (`---`, `***`, `___`)
+- lists with `*` or `+` marks, and numbered lists with `1)`
+- a footnote with more than one line
+- a title or highlighted lines in a code block
+- bold or italic text, code, math, a link or a footnote in a heading
+- bold or italic text that holds code, math, a link, a footnote or other bold or italic text
+
+The `sc:` address is the one convention that only md2misc understands. The rest is Markdown that GitHub shows as it is.
+
+The schelp fixtures are in `tests/schelp/`. The tests let headless `sclang` parse and render the output with SCDoc and compare the HTML; see Tests below.
+
+---
+
+## Tests
+
+The tests use pytest. In a virtual environment, from a checkout of this repository:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e ".[test]"
+python3 -m pytest              # all tests
+python3 -m pytest -k schelp    # the schelp tests
+```
+
+The tests of the SCDoc output run headless `sclang` (SuperCollider). They are skipped if `sclang` is not on `PATH` or in the `SCLANG` environment variable, thus a contributor to another backend does not need SuperCollider. With `MD2MISC_REQUIRE_SCLANG=1`, a missing `sclang` is an error and not a skip.
+
+All versions of `sclang` must parse the schelp output with no error and give the expected parts of the pages. The `.html` files hold whole pages of the SuperCollider version in `tests/schelp/SCLANG_VERSION`; the tests compare whole pages only with that version.
+
+GitHub Actions (`.github/workflows/tests.yml`) runs all tests against the installed package with several Python versions, and the SCDoc tests with the SuperCollider of Ubuntu.
+
+- `tests/test_tex_battery.py`: the TeX output is the same as the output of md2tex, for the fixtures in `tests/fixtures` (pages of a book and the md2tex README, with a coverage table in `tests/COVERAGE.md`).
+- `tests/test_schelp_golden.py`: the schelp output is the same as the `.schelp` files in `tests/schelp`.
+- `tests/test_schelp_render.py`: SCDoc renders the schelp output to the HTML in the `.html` files in `tests/schelp`, with the sections in order. SCDoc also renders the cases in `tests/schelp_cases.py` (`RENDERS` and `SUPPORTED`) with no error, and the pages hold the expected HTML.
+- `tests/test_schelp_errors.py`: the constructs without a schelp form stop the conversion with the file, line and construct, and look-alikes in code are accepted.
+- `tests/test_schelp_writer.py`: the writers of the schelp backend stop at the constructs too, when the check of the source does not find them.
+- `tests/test_schelp_behavior.py`, `tests/test_schelp_cli.py` and `tests/test_tex_cli.py`: the output of single cases, and the commands.
+
+The fixture files that are made by a tool:
+
+- `python3 tests/battery.py build` makes the TeX fixtures. It needs `pip install -e ".[battery]"` and private checkouts of the book that the fixtures come from, thus contributors do not run it: the `.tex` files are the frozen reference (the output of md2tex).
+- `python3 tests/schelp_fixtures.py update` makes the `.schelp` and `.html` files and `SCLANG_VERSION`. Read the diff afterwards. After an update of SuperCollider, the HTML can change: make the files again and read the diff.
+
+---
 
 ## Markdown syntax
 
@@ -308,5 +388,4 @@ to an item in a list in a list). This will **not** stop the script, the indentat
 ---
 
 ## License and credits
-Developed by Paul Kervegan in August 2022 and released under GNU GPL v3.
-Features added by Anders Eskildsen in January-February 2025.
+Released under GNU GPL v3. `md2tex` was developed by Paul Kervegan in August 2022. Features were added by Anders Eskildsen in January-February 2025, and `md2misc` continues from there. See `NOTICE`.

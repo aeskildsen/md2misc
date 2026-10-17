@@ -1,0 +1,56 @@
+\chapter*{One}
+\addcontentsline{toc}{chapter}{One}
+\section*{Two}
+\addcontentsline{toc}{section}{Two}
+\subsection*{Three}
+\addcontentsline{toc}{subsection}{Three}
+\subsubsection*{Four}
+\addcontentsline{toc}{subsubsection}{Four}
+
+\noindent{}\textbf{Five}
+
+\noindent{}\textbf{Six}
+
+\noindent{}\textbf{Seven}
+
+\chapter*{Adjacent}
+\addcontentsline{toc}{chapter}{Adjacent}
+\section*{headings}
+\addcontentsline{toc}{section}{headings}
+\subsection*{without}
+\addcontentsline{toc}{subsection}{without}
+\subsubsection*{blank lines}
+\addcontentsline{toc}{subsubsection}{blank lines}
+
+para
+\section*{After blank lines}
+\addcontentsline{toc}{section}{After blank lines}
+
+\chapter*{nospace}
+\addcontentsline{toc}{chapter}{nospace}
+
+\chapter\textit{{\textbf{Bold} and }italic* in a heading with C\# and a\_b and 100\%}
+\addcontentsline{toc}{chapter}{\textbf{Bold} and \textit{italic} in a heading with C\# and a\_b and 100\%}
+
+Text with \# in the middle, and \mintinline{./sc_lexer.py:SuperColliderLexer}{# code}, and C\# lang.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+# not a heading
+\end{minted}
+\end{listing}
+
+\begin{itemize}
+\item list item \# heading right after a list item
+\item next item 
+\end{itemize}
+
+\begin{quotation}
+\chapter*{heading in a quote}
+\addcontentsline{toc}{chapter}{heading in a quote}
+
+  quoted text
+\end{quotation}
+\chapter*{indented heading}
+\addcontentsline{toc}{chapter}{indented heading}
+

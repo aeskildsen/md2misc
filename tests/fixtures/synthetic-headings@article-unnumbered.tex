@@ -1,0 +1,56 @@
+\section*{One}
+\addcontentsline{toc}{section}{One}
+\section*{Two}
+\addcontentsline{toc}{subsection}{Two}
+\subsection*{Three}
+\addcontentsline{toc}{subsubsection}{Three}
+
+\noindent{}\textbf{Four}
+
+\noindent{}\textbf{Five}
+
+\noindent{}\textbf{Six}
+
+\noindent{}\textbf{Seven}
+
+\section*{Adjacent}
+\addcontentsline{toc}{section}{Adjacent}
+\section*{headings}
+\addcontentsline{toc}{subsection}{headings}
+\subsection*{without}
+\addcontentsline{toc}{subsubsection}{without}
+
+\noindent{}\textbf{blank lines}
+
+para
+\section*{After blank lines}
+\addcontentsline{toc}{subsection}{After blank lines}
+
+\section*{nospace}
+\addcontentsline{toc}{section}{nospace}
+
+\section\textit{{\textbf{Bold} and }italic* in a heading with C\# and a\_b and 100\%}
+\addcontentsline{toc}{section}{\textbf{Bold} and \textit{italic} in a heading with C\# and a\_b and 100\%}
+
+Text with \# in the middle, and \mintinline{./sc_lexer.py:SuperColliderLexer}{# code}, and C\# lang.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+# not a heading
+\end{minted}
+\end{listing}
+
+\begin{itemize}
+\item list item \# heading right after a list item
+\item next item 
+\end{itemize}
+
+\begin{quotation}
+\section*{heading in a quote}
+\addcontentsline{toc}{section}{heading in a quote}
+
+  quoted text
+\end{quotation}
+\section*{indented heading}
+\addcontentsline{toc}{section}{indented heading}
+

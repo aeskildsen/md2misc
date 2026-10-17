@@ -1,0 +1,3 @@
+First line<br>second line<br/>third line
+
+A paragraph after the break tags.

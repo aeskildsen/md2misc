@@ -1,0 +1,16 @@
+SECTION::Admonitions
+
+note::
+A note, with code::code:: and strong::bold:: text.
+
+::
+
+warning::
+A warning.
+
+::
+
+note::
+A tip is written as a note.
+
+::

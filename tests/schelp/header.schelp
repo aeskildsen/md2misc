@@ -1,0 +1,8 @@
+TITLE::Characters in the header
+SUMMARY::A colon pair a\::b, one # hash, one | bar and "quotes" in a summary
+RELATED::Classes/SinOsc, Classes/Pbind
+CATEGORIES::Tests, Headers
+
+DESCRIPTION::
+
+The header has characters that SCDoc takes as markup.

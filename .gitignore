@@ -6,6 +6,7 @@ output/*
 input/*
 .idea
 *.egg-info/
+build/
 
 ## aux TeX files
 _minted-*
@@ -33,3 +34,9 @@ _minted-*
 *.cb
 *.cb2
 .*.lb
+
+## battery cache (exported by tests/battery.py build)
+tests/book-export/
+
+## virtual environment
+.venv/

@@ -1,0 +1,264 @@
+
+
+Vi har indtil nu arbejdet med rent syntetisk dannede klange i SuperCollider. Men der er også gode muligheder for at arbejde med præindspillet lyd eller for den sags skyld live-lyd fra en mikrofon eller andet musikudstyr. Her koncentrerer vi os i første omgang om at arbejde med samples i form af præeksisterende lydfiler, som vi først indlæser og derefter kan bearbejde i SuperCollider. Sample-manipulation er ganske fleksibelt i SuperCollider, men det kræver en lille smule teknisk forberedelse, som gennemgås herunder. Derefter introducerer kapitlet til tre kompositionsstrategier, hvor vi komponerer med samples ved hjælp af pattern-teknikker: Algoritmisk produktion af dynamiske trommebeats, beatslicing, hvor vi klipper beats op i metrisk organiserede enheder, samt manipulation og sammensætning af samples til abstrakte lydcollager. Kaptitlet indeholder som altid øvelser inden for disse områder, hvor man kan bruge egne samples for at opnå særegne resultater.
+\section{Samples i SuperCollider}
+
+SuperCollider kan fungere som en yderst fleksibel sample-maskine, hvor vi indlæser eksisterende lydfiler og arbejder med dem på forskellige måder. SuperCollider kan også skabe lydfiler, hvilket dog først gennemgås [senere](../10/a-optag-supercollider.md). Når vi arbejder med samples i SuperCollider, skal vi indlæse disse i en såkaldt \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer} på lydserveren. Derfra kan vi afspille samples med forskellige UGens: Herunder kigger vi først og fremmest på, hvordan man bruger \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf} samt hvordan den lidt mere fleksible \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRd} fungerer.
+
+Inden vi går i gang, kan det imidlertid være nyttigt at have de skiftende betydninger af ordet \enquote{sample} for øje. Det forudsættes herunder, at du er fortrolig med disse tre betydninger af ordet og kan forstå ud fra konteksten, hvad der menes.
+
+\begin{itemize}
+\item Den éne betydning af samplebegrebet er meget teknisk og angår hvordan lyd repræsenteres og bearbejdes i digitale systemer \parencite[p. 29]{roads2023}. Når man optager lyd via et lydkort, bliver lyden omdannet fra det analoge domæne (fx hvis vi optager lydsignalet fra en mikrofon) til det digitale domæne ved hjælp af en såkaldt analog-til-digital converter (ADC), hvor lydsignalet \enquote{måles} (\enquote{samples}) mange gange pr. sekund. Det er her, udtrykket \textit{samplerate} eller \textit{samplingfrekvens} kommer i spil: Sampleraten for en lydfil definerer, hvor ofte lydsignalet oprindeligt blev målt, og dermed hvor hurtigt vi skal læse de enkelte målinger efter hinanden, når vi skal afspille filen. Almindelige samplerates inden for musik i dag er 44,1 kHz (CD-kvalitet), 48 kHz, 88,2 kHz, 96 kHz og 192 kHz. Målingens \enquote{opløsning}, altså hvor fintfølende vores sampling af det analoge signal måler, kaldes lydoptagelsens \textit{bitdybde} (på engelsk: \textit{bit rate} eller \textit{bit depth}). Man kan som en øvelse selv teste i SuperCollider, hvor mange valgmuligheder samplingen har ved bitdybder på hhv. 8, 16, 24 og 32 bit (med \mintinline{./sc_lexer.py:SuperColliderLexer}{2.pow(8)}, \mintinline{./sc_lexer.py:SuperColliderLexer}{2.pow(16)} osv.).
+\item En anden betydning af samplebegrebet er meget udbredt på nettet og knytter sig til de såkaldte sampler-musikinstrumenter \parencite[p. 107]{kvifte2007}. Her er der tale om korte lydoptagelser, der ofte emulerer akustiske musikinstrumenter. Det kan fx være lyden af et lilletromme-hit, et toneanslag på klaver eller guitar osv. Disse er ofte knyttet til interfaces som keyboards, elektroniske trommesæt/-maskiner, MIDI-instrumenter i DAW-programmer osv.
+\item En tredje betydning af sampling kan skelnes fra de første, og den vedrører den meget udbredte praksis, at komponister og producere inkorporerer større eller mindre dele af andre værker i deres egne værker \parencite[p. 107]{kvifte2007}. Dette har været en meget udbredt kunstnerisk strategi siden før ophavsretslovgivningens fremmarch og er fortsat særdeles udbredt i blandt andet populærmusikalske genrer, hvor særligt hiphoppen traditionelt har indebåret sampling i meget vid udstrækning. Der findes en del historisk og aktuel forskning om de musikformer og den såkaldte remixkultur, som baserer sig på sampling i denne betydning af ordet \parencites{dyndahl2005, kvifte2007, miller2008, navas2012, rodgers2003, sewell2014, tillet2014}. 
+\end{itemize}
+\subsection{Indlæsning af lydfil i Buffer}
+
+For at arbejde med et sample/en lydfil, skal samplet indlæses i en såkaldt \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer}. En \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer} er et afgrænset område i lydserverens hukommelse, der fungerer lidt ligesom [en variabel](../01/a-variabler.md)\footnote{I modsætning til de variabler, vi tidligere har arbejdet med, som hører til [fortolkeren](../01/a-brugerflade.md\#brugerflade-fortolker-og-lydserver), er buffere nogle objekter, der tilhører lydserveren. Lydserveren har en liste med buffere og identificerer disse ved hjælp af deres unikke indekstal, som kan findes med method'en \mintinline{./sc_lexer.py:SuperColliderLexer}{.bufnum}. I praksis har vi sjældent brug for at arbejde direkte med bufferes nummer, da vi i stedet bruger almindelige variabler på fortolkeren til at holde styr på bufferne, og SuperCollider internt håndterer nummereringen af bufferne automatisk for os.}. Derfor skal lydserveren også være bootet, før vi indlæser vores sample.
+
+Vi foretager indlæsning af lydfiler med \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer.read(s, 'C:/lydfiler/minlydfil.wav')}, hvor første argument er lydserveren \mintinline{./sc_lexer.py:SuperColliderLexer}{s}, og andet argument er stien til den lydfil, vi ønsker at indlæse. Vi gemmer ofte resultatet af denne instruks i en variabel, så vi ved hjælp af variablen kan henvise til bufferen.
+
+Som et eksempel kan man bruge et sample, der følger med SuperCollider (linje 2 herunder). Man kan også nemt arbejde med egne samples (se linje 5 herunder) - erstat blot \mintinline{./sc_lexer.py:SuperColliderLexer}{C:/lydfiler/galivanting.wav} med \textit{stien} til din egen lydfil. En sti til en fil er blot en tekst-streng, som viser hvor i computerens mappehierarki, filen befinder sig. Her har jeg indlæst et udklip fra en oplæsning af digtet \textit{'Urry}\footnote{Både digtet af C. J. Dennis og oplæsningen af Son of the Exiles tilhører det offentlige domæne. Oplæsningen kan findes i fuld længde via platformen \href{https://librivox.org/short-poetry-collection-142-by-various/}{LibriVox}.} af C. J. Dennis \parencite{dennis2015}.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+// Et indbygget sample indlæses i buffer
+~sample = Buffer.read(s, Platform.resourceDir +/+ "sounds/a11wlk01.wav");
+
+// En ekstern lydfil indlæses i buffer
+~sample = Buffer.read(s, "C:/lydfiler/galivanting.wav");
+\end{minted}
+\caption{Indlæsning af lydfil i Buffer}
+\end{listing}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-urry-galivanting.ogg}
+    \caption{audio/ogg}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-urry-galivanting.mp3}
+    \caption{audio/mpeg}
+\end{figure}
+
+Et tip til den dovne programmør: Stier til filer kan genereres ganske let i SuperCollider! Man kan trække filen ind i SuperColliders tekstfelt med musen, eller man kan copy-paste filen fra en mappe på din computer. Når du slipper en fil med musen eller taster Ctrl/Cmd-V på tastaturet for at sætte filen ind, vil SuperColliders IDE skrive filens sti, der hvor musemarkøren eller cursoren befinder sig. Smart, ikke sandt?
+
+Når lydfilen er indlæst i en \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer} under variabelnavnet \mintinline{./sc_lexer.py:SuperColliderLexer}{~sample}, som vist ovenfor, kan vi bruge forskellige [instance methods](../01/a-methods.md\#instance-methods), til at vise grundlæggende oplysninger om samplet.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+~sample.path;      // samplets oprindelige sti i filsystemet
+// -> C:/lydfiler/galivanting.wav
+
+~sample.duration;  // varighed, målt i sekunder
+// -> 2.7284126984127
+
+~sample.query;     // teknisk information om bufferen
+// bufnum: 7
+// numFrames: 120323
+// numChannels: 1
+// sampleRate: 44100.0
+
+~sample.plot;      // visuel repræsentation
+\end{minted}
+\caption{Nyttige info-methods til buffere}
+\end{listing}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.70\textwidth]{../media/figures/buffer-plot.png}
+    \caption{Plot af sample indlæst i buffer}
+\end{figure}
+
+Hvis du arbejder med mange lydfiler og bliver træt af at indlæse dem én ad gangen, kan du automatisere indlæsningen ved at skrive en [funktion](../01/a-funktioner.md), der [itererer over](../01/a-lister.md\#iteration-over-lister) filerne i en mappe og indlæser dem en efter en. Alternativt kan du installere og anvende \href{https://github.com/madskjeldgaard/PolyBuf}{udvidelsen \textit{PolyBuf} af Mads Kjeldgaard}, som gør netop dette.
+\subsubsection{Indlæsning af enkeltkanaler fra lydfiler}
+
+Ønsker vi blot at indlæse én af flere kanaler i en lydfil, kan vi i stedet for method'en \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer.read} bruge \mintinline{./sc_lexer.py:SuperColliderLexer}{Buffer.readChannel} og under argumentet \mintinline{./sc_lexer.py:SuperColliderLexer}{channels} angive en liste med et tal for hver af de kanaler, vi ønsker at indlæse. Her er 0 typisk den venstre og 1 typisk den højre kanal.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+// Venstre kanal fra en ekstern lydfil indlæses i mono-buffer
+~sampleV = Buffer.readChannel(s, "C:/lydfiler/minlydfil.wav", channels: [0]);
+
+// Højre kanal fra en ekstern lydfil indlæses i mono-buffer
+~sampleH = Buffer.readChannel(s, "C:/lydfiler/minlydfil.wav", channels: [1]);
+\end{minted}
+\caption{Indlæsning af lydfil i mono-buffer}
+\end{listing}
+\subsection{Sample-afspilning med PlayBuf}
+
+Den mest enkle måde at afspille samples på er at bruge UGen'en \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf}. Når vi gør det, er der to tekniske forhold, som er værd at huske på:
+
+\begin{itemize}
+\item \textbf{Sampleraten} i en given lydfil matcher ikke nødvendigvis lydserverens samplerate. Hvis lydserverens samplerate er 44,1 kHz, men lydfilen er produceret ved 48 kHz, vil afspilningen ske for langsomt. Det byder blandt andet, at tonehøjder og tempo ikke vil passe til det, vi forventer. Derfor har vi en særlig UGen, der kan tage højde for sådanne uoverensstemmelser, nemlig \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRateScale}.
+\item \textbf{Antal samples:} Et lydsample eller en lydfil består som beskrevet ovenfor af et antal målinger (\enquote{samples}). Når vi bruger \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf}, arbejder vi med samplets varighed ud fra antallet af disse samples. Sammenholdt med sampleraten, dvs. hvor hurtigt vi skal læse disse samples, afspiller \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf} det sample, som er indlæst i bufferen. Vi kan imidlertid ikke bare gå ud fra antallet af enkeltsamples i en Buffer, da en buffer kan indeholde data fra lydfiler med et variabelt antal kanaler. En stereo-lydfil vil have dobbelt så mange samples som en mono-lydfil af samme varighed og med samme samplerate. De fleste filformater understøtter nu om dage mange kanaler, så hvordan tager vi højde for det? Jo, for at finde varigheden af en indlæst lydfil, målt i samples, kan vi bruge den dertil beregnede UGen \mintinline{./sc_lexer.py:SuperColliderLexer}{BufFrames}. Den giver os antallet af såkaldte \textit{sample frames}, som er det samme, uanset hvor mange kanaler, bufferen indeholder. 
+\end{itemize}
+
+Herunder fremgår, hvordan man indstiller argumenterne til \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf} og bruger \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRateScale} samt \mintinline{./sc_lexer.py:SuperColliderLexer}{BufFrames} til at tage højde for det indlæste samples varighed og samplerate.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{
+    PlayBuf.ar(
+        // antal kanaler
+        numChannels: 1,
+
+        // variabel, der henviser til den ønskede Buffer
+        bufnum: ~sample,
+
+        // afspilningshastighed 1
+        // BufRateScale tager højde for evt. mismatch mellem serverens og lydfilens respektive samplerates
+        rate: 1 * BufRateScale.kr(~sample),
+
+        // reset-trigger, kan bruges til at angive spring til startposition
+        trigger: 0,
+
+        // startposition måles i sample frames
+        // BufFrames.kr giver det samplede antal sample frames i bufferen/lydfilen
+        startPos: 0 * BufFrames.kr(~sample),
+
+        // loop - start forfra, når vi rammer slutningen af bufferen (0 = nej, 1 = ja)
+        loop: 1,
+
+        // doneAction - hvad sker der, når vi rammer den sidste sample frame i bufferen?
+        doneAction: Done.freeSelf
+    )
+}.play
+\end{minted}
+\caption{PlayBuf-argumenter}
+\end{listing}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-galivanting-loop.ogg}
+    \caption{audio/ogg}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-galivanting-loop.mp3}
+    \caption{audio/mpeg}
+\end{figure}
+
+Vi kan modulere flere af \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf}s parametre ved hjælp af andre UGens. Herunder moduleres afspilningshastighed af henholdsvis \mintinline{./sc_lexer.py:SuperColliderLexer}{SinOsc} og \mintinline{./sc_lexer.py:SuperColliderLexer}{LFNoise1}.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{
+    PlayBuf.ar(1, ~sample,
+        SinOsc.kr(2) * BufRateScale.kr(~sample)
+    )
+}.play;
+
+{
+    PlayBuf.ar(1, ~sample,
+        LFNoise1.kr(1).exprange(0.5, 2) * BufRateScale.kr(~sample),
+        loop: 1
+    )
+}.play;
+\end{minted}
+\caption{Modulation af sampleafspilning med LFO}
+\end{listing}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-lfo-playbuf.ogg}
+    \caption{audio/ogg}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-lfo-playbuf.mp3}
+    \caption{audio/mpeg}
+\end{figure}
+
+Med et [triggersignal](../04/c-ugens.md\#triggere-og-delays), her skabt af UGen'en \mintinline{./sc_lexer.py:SuperColliderLexer}{Impulse}, kan vi springe hen til den position i bufferen, som er angivet med argumentet \mintinline{./sc_lexer.py:SuperColliderLexer}{startPos}.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+// Fast startposition - midt i bufferen
+{
+    PlayBuf.ar(1, ~sample,
+        trigger: Impulse.kr(4),
+        startPos: 0.4 * BufFrames.kr(~sample),
+    )
+}.play;
+
+// Dynamisk startposition, moduleret af en LFO
+{
+    PlayBuf.ar(1, ~sample,
+        trigger: Impulse.kr(4),
+        startPos: BufFrames.kr(~sample) * LFTri.kr(0.05).unipolar,
+    )
+}.play
+\end{minted}
+\caption{Spring til position i sample}
+\end{listing}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-playbuf-reset.ogg}
+    \caption{audio/ogg}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-playbuf-reset.mp3}
+    \caption{audio/mpeg}
+\end{figure}
+\subsection{Ekstra fleksibilitet med BufRd}
+
+\mintinline{./sc_lexer.py:SuperColliderLexer}{BufRd} er mere fleksibel end \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf}, fordi den tillader, at vi styrer læsningen af data fra bufferen direkte med en anden UGen. Det svarer lidt til, at en pladespillers pickupnål aflæser den lyd, som er indpræget i en vinylplade. Men til forskel fra pladespillerens stabile rotationsbevægelse kan vi med et bredt udvalg af UGens kan flytte nålen rundt på meget forskellig vis. Til at styre afspilningspositionen angiver vi hertil en UGen under \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRd.ar}'s argument \mintinline{./sc_lexer.py:SuperColliderLexer}{phase}.
+
+Ofte anvendes UGen'en \mintinline{./sc_lexer.py:SuperColliderLexer}{Phasor} hertil, fordi den skaber en lineær rampe fra en start- til en slutværdi. Til disse to værdier kan vi angive henholdsvis 0 og bufferens samlede antal sample frames ved hjælp af \mintinline{./sc_lexer.py:SuperColliderLexer}{BufFrames}. Dette vil resultere i en afspilning af samplet præcist som det er indlæst i bufferen, når vi samtidig skalerer afspilningshastigheden med \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRateScale} for at tage højde for eventuelt samplerate-mismatch, akkurat ligesom ved \mintinline{./sc_lexer.py:SuperColliderLexer}{PlayBuf}.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{
+    BufRd.ar(
+        numChannels: 1,
+        bufnum: ~sample,
+        // phase-argumentet er afspilningspositionen, målt i sample frames
+        phase: Phasor.ar(
+            trig: 0, // ligesom PlayBuf's trigger-argument
+            rate: BufRateScale.kr(~sample),
+            start: 0,
+            end: BufFrames.kr(~sample)
+        ),
+        loop: 1
+    )
+}.play;
+\end{minted}
+\caption{Sample-afspilning med BufRd og Phasor}
+\end{listing}
+
+Det interessante ved \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRd} er imidlertid, at man frit kan anvende andre UGens end \mintinline{./sc_lexer.py:SuperColliderLexer}{Phasor}. Herunder moduleres afspilningspositionen i \mintinline{./sc_lexer.py:SuperColliderLexer}{BufRd} af henholdsvis en slagtøjsagtig envelope og en lavfrekvent støjgenerator, der bevæger sig tilfældigt.
+
+\begin{listing}[H]
+\begin{minted}{./sc_lexer.py:SuperColliderLexer}
+{
+    var position = EnvGen.ar(Env.perc(0.1, 2)) * BufFrames.kr(~sample);
+    BufRd.ar(1, ~sample, position, 1);
+}.play;
+
+{
+    var position = LFNoise2.ar(2).range(0, BufFrames.kr(~sample));
+    BufRd.ar(1, ~sample, position, 1);
+}.play;
+\end{minted}
+\caption{Envelope og tilfældighedsgenerator som pickupnål}
+\end{listing}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-bufrd-modulation.ogg}
+    \caption{audio/ogg}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=.85\textwidth]{../media/audio/08-bufrd-modulation.mp3}
+    \caption{audio/mpeg}
+\end{figure}

@@ -1,0 +1,5 @@
+SECTION::Links
+
+A link to a link::Classes/SinOsc##SuperCollider class::, a link with the class name as text, link::Classes/SinOsc::, and a link to an anchor in a page, link::Classes/SinOsc#*ar#the audio rate method::.
+
+An external link: link::https://supercollider.github.io##the SuperCollider site::, one with a fragment, link::https://example.com/page#section#a section::, and a plain URL https://example.org/a_b in the text.

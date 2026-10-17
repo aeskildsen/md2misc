@@ -1,0 +1,6 @@
+{
+  "metadata": {"class": "Md2miscTestStructure"},
+  "insertions": {
+    "classmethods": "CLASSMETHODS::\nMETHOD::ar, kr\nARGUMENT::freq\nThe frequency.\nARGUMENT::mul\nThe level.\nreturns::An array of two channels.\n"
+  }
+}

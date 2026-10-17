@@ -1,0 +1,3 @@
+SECTION::Footnotes
+
+A sentence with a footnote.footnote::The first note, with strong::bold:: text and a link to link::Classes/Pbind##a class::.:: Another sentence, with a second footnote.footnote::The second note.::
