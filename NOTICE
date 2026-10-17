@@ -6,8 +6,8 @@ Copyright (C) 2022 Paul Kervegan, released under the GNU General Public
 License version 3. The complete history of md2tex, with the commits of its
 authors, is part of this repository's git history.
 
-Additions to md2tex by Anders Eskildsen (January-February 2025) and all
-later work in this repository are released under the same licence.
+Later additions to md2tex by Anders Eskildsen and all later work in this
+repository are released under the same licence.
 
 The test fixtures in tests/fixtures are described in
 tests/fixtures/ATTRIBUTION.md. They have their own licence.

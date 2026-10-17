@@ -388,4 +388,4 @@ to an item in a list in a list). This will **not** stop the script, the indentat
 ---
 
 ## License and credits
-Released under GNU GPL v3. `md2tex` was developed by Paul Kervegan in August 2022. Features were added by Anders Eskildsen in January-February 2025, and `md2misc` continues from there. See `NOTICE`.
+Released under GNU GPL v3. `md2tex` was developed by Paul Kervegan in August 2022. Later additions to `md2tex` were made by Anders Eskildsen, and `md2misc` continues from there. See `NOTICE`.
