@@ -140,6 +140,8 @@ The `convert` function takes four optional, additional arguments corresponding t
 
 `md2misc schelp in.md` writes a SuperCollider help document (the markup that SCDoc renders to HTML). The options are `-o`/`--output-path`, `-s`/`--stdout`, `-m`/`--meta KEY=VALUE` and `-i`/`--insert NAME=FILE`. In Python: `from md2misc import convert_schelp`.
 
+The output needs SuperCollider 3.14 or later. SCDoc 3.13 does not know the `MATH::` and `SUBSUBSECTION::` tags, which md2misc writes for math and for headings of level 4 and lower, and stops with a syntax error.
+
 ### The header
 
 The header tags come from three places:
@@ -220,9 +222,9 @@ python3 -m pytest -k schelp    # the schelp tests
 
 The tests of the SCDoc output run headless `sclang` (SuperCollider). They are skipped if `sclang` is not on `PATH` or in the `SCLANG` environment variable, thus a contributor to another backend does not need SuperCollider. With `MD2MISC_REQUIRE_SCLANG=1`, a missing `sclang` is an error and not a skip.
 
-All versions of `sclang` must parse the schelp output with no error and give the expected parts of the pages. The `.html` files hold whole pages of the SuperCollider version in `tests/schelp/SCLANG_VERSION`; the tests compare whole pages only with that version.
+Each version of `sclang` from 3.14 must parse the schelp output with no error and give the expected parts of the pages. The `.html` files hold whole pages of the SuperCollider version in `tests/schelp/SCLANG_VERSION`; the tests compare whole pages only with that version.
 
-GitHub Actions (`.github/workflows/tests.yml`) runs all tests against the installed package with several Python versions, and the SCDoc tests with the SuperCollider of Ubuntu.
+GitHub Actions (`.github/workflows/tests.yml`) runs all tests against the installed package with several Python versions, and the SCDoc tests with the SuperCollider of Debian forky (Ubuntu 24.04 has 3.13).
 
 - `tests/test_tex_battery.py`: the TeX output is the same as the output of md2tex, for the fixtures in `tests/fixtures` (pages of a book and the md2tex README, with a coverage table in `tests/COVERAGE.md`).
 - `tests/test_schelp_golden.py`: the schelp output is the same as the `.schelp` files in `tests/schelp`.

@@ -23,18 +23,18 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: python -m pytest -p no:cacheprovider -o pythonpath=${{ github.workspace }}/tests ${{ github.workspace }}/tests
 
-  # The SCDoc tests with the SuperCollider of Ubuntu. They must not be skipped. The comparison of whole pages is
+  # The SCDoc tests with the SuperCollider of Debian. They must not be skipped. The comparison of whole pages is
   # skipped if this sclang is not the version in tests/schelp/SCLANG_VERSION.
+  # The schelp output needs SuperCollider 3.14 or later (math:: and subsubsection::). Ubuntu 24.04 and Debian
+  # trixie have 3.13, Debian forky has 3.14.
   scdoc:
     runs-on: ubuntu-24.04
+    container: debian:forky
     env:
       MD2MISC_REQUIRE_SCLANG: "1"
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends supercollider-language
-      - run: python -m pip install ".[test]"
-      - run: python -m pytest -k schelp -rs
+      - run: apt-get update && apt-get install --yes --no-install-recommends python3 python3-venv supercollider-language
+      - run: python3 -m venv /opt/venv && /opt/venv/bin/python -m pip install ".[test]"
+      - run: /opt/venv/bin/python -m pytest -k schelp -rs
