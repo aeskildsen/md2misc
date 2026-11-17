@@ -67,4 +67,4 @@ Version 0.2.0 removed the `md2misc` command and the dependency on `click`.
 
 ## License and credits
 
-Released under GNU GPL v3. `md2tex` was developed by Paul Kervegan in August 2022. Later additions to `md2tex` were made by Anders Eskildsen, and `md2misc` continues from there. See `NOTICE`.
+Released under the GNU General Public License version 3 only (GPL-3.0-only). `md2tex` was developed by Paul Kervegan in August 2022. Later additions to `md2tex` were made by Anders Eskildsen, and `md2misc` continues from there. See `NOTICE`.

@@ -1,0 +1,4 @@
+# The sdist has the complete test setup: the tests, their helper modules and
+# the fixtures. tests/fixtures/ATTRIBUTION.md gives the licence of the fixtures.
+graft tests
+global-exclude __pycache__ *.py[cod]
