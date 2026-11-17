@@ -15,7 +15,7 @@ schelp = convert_schelp(markdown, metadata=None, insertions=None)
 
 The output needs SuperCollider 3.14 or later. SCDoc 3.13 does not know the `MATH::` and `SUBSUBSECTION::` tags, which `md2misc` writes for math and for headings of level 4 and lower, and stops with a syntax error.
 
-A Markdown construct that has no schelp form raises an error that names the file, the line and the construct. See [below](#constructs-that-stop-the-conversion).
+A Markdown construct that has no schelp form raises `UnsupportedConstruct`, with the line and the construct. `describe(source)` gives the message with the file name too. See [below](#constructs-that-stop-the-conversion).
 
 ## The header
 
@@ -23,7 +23,7 @@ The header tags come from three places:
 
 1. The front matter at the start of the Markdown file: a block of `key: value` lines between two lines with `---`. The keys are `title`, `class`, `summary`, `related` and `categories`. `related` and `categories` take a list: `[a, b]`, lines with `- item` below the key, or a string with commas.
 2. The first level 1 heading (`# Title`). It gives the `TITLE::` if the front matter has no `title` and no `class`. Otherwise it is left out. A second level 1 heading stops the conversion.
-3. The `metadata` argument (`--meta KEY=VALUE` on the command line). Use it for a value that the Markdown file does not know, like the class name: `metadata={"class": "PhysWoodbar"}`.
+3. The `metadata` argument. Use it for a value that the Markdown file does not know, like the class name: `metadata={"class": "PhysWoodbar"}`.
 
 The header is `CLASS::`, `TITLE::` (both, if both are given), `SUMMARY::`, `RELATED::` and `CATEGORIES::`, in this order. In a value, `::` gets a backslash. `##` and `||` stop the conversion, because SCDoc cannot show them in a header line.
 
@@ -33,7 +33,7 @@ A file with no front matter, no level 1 heading and no metadata gives the body o
 
 A level 2 heading `## Description` gives `DESCRIPTION::`, and `## Examples` gives `EXAMPLES::`. Any other level 2 heading gives `SECTION::`.
 
-A line `<!-- md2misc: NAME -->` is an insertion point. Markdown viewers do not show the comment. The `insertions` argument (`--insert NAME=FILE`) puts the schelp text in its place, as it is. A program that writes the `CLASSMETHODS::` section can use this to put it between the description and the examples.
+A line `<!-- md2misc: NAME -->` is an insertion point. Markdown viewers do not show the comment. The `insertions` argument puts the schelp text in its place, as it is. A program that writes the `CLASSMETHODS::` section can use this to put it between the description and the examples.
 
 An insertion point with no text gives nothing. Text for a name that the file does not have stops the conversion.
 

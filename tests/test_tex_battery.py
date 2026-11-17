@@ -12,6 +12,9 @@ from md2misc import convert
 
 TEX_FILES = sorted(FIXTURES.glob("*.tex"))
 
+# the book pages have links to other pages, which give warnings. this test compares the output only.
+pytestmark = pytest.mark.filterwarnings("ignore::md2misc.Md2miscWarning")
+
 
 @pytest.mark.parametrize("tex_path", TEX_FILES, ids=[p.stem for p in TEX_FILES])
 def test_tex_output_is_unchanged(tex_path):

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "md2misc"
-version = "0.1.0"
-description = "A command line tool and Python module that converts Markdown to TeX and to SuperCollider help (schelp)"
+version = "0.2.0"
+description = "A Python library that converts Markdown to TeX and to SuperCollider help (schelp)"
 readme = "README.md"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
@@ -14,7 +14,7 @@ authors = [
     { name = "Anders Eskildsen" },
 ]
 requires-python = ">=3.10"
-dependencies = ["click>=8.2"]
+dependencies = []
 
 [project.optional-dependencies]
 # the test suite. the SCDoc tests also need sclang (SuperCollider); they are skipped without it
@@ -25,9 +25,6 @@ battery = ["pyyaml", "pathvalidate"]
 [project.urls]
 Homepage = "https://github.com/aeskildsen/md2misc"
 "Derived from" = "https://github.com/paulhectork/md2tex"
-
-[project.scripts]
-md2misc = "md2misc.cli:main"
 
 [tool.setuptools]
 packages = ["md2misc", "md2misc.backends"]

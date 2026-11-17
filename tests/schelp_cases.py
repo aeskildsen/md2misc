@@ -62,15 +62,14 @@ WRITER_ONLY = [
     ("Text with *italic **bold** inside*.\n", "bold text and italic text inside each other"),
 ]
 
-# Problems with the document as a whole: Markdown, arguments of the command and the text that the error must hold.
+# Problems with the document as a whole: Markdown, the `metadata` and `insertions` arguments, and the text that the
+# error must hold.
 DOCUMENT_ERRORS = [
-    ("---\nsummary: A\n---\n\n## Section\n", [], "needs a title or a class"),
-    ("## Section\n", ["--meta", "summary"], "is not of the form KEY=VALUE"),
-    ("## Section\n", ["--meta", "colour=red"], "front matter key `colour`"),
-    ("## Section\n", ["--insert", "classmethods=nofile.schelp"], "was not found"),
-    ("## Section\n", ["--insert", "classmethods={file}"], "has no insertion point for: classmethods"),
-    ("---\ntitle: A\nsummary: Bars || here\n---\n\n## Section\n", [], "`##` or `||` in the value of `summary`"),
-    ("## Section\n", ["--meta", "title=A ## B"], "`##` or `||` in the value of `title`"),
+    ("---\nsummary: A\n---\n\n## Section\n", None, None, "needs a title or a class"),
+    ("## Section\n", {"colour": "red"}, None, "front matter key `colour`"),
+    ("## Section\n", None, {"classmethods": "CLASSMETHODS::\n"}, "has no insertion point for: classmethods"),
+    ("---\ntitle: A\nsummary: Bars || here\n---\n\n## Section\n", None, None, "`##` or `||` in the value of `summary`"),
+    ("## Section\n", {"title": "A ## B"}, None, "`##` or `||` in the value of `title`"),
 ]
 
 # Markdown that is fine, although it looks like an unsupported construct.

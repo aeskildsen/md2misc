@@ -16,7 +16,16 @@ tex = convert(markdown, unnumbered=False, document_class="article",
 | `minted_language` | The language of code blocks that have none (default `text`). |
 | `override_language` | Give every code block `minted_language`. |
 
-For a complete document, put the body in a template. `md2misc.core.default_template()` returns the text of the default template. The body goes where the template has `@@BODYTOKEN@@`.
+`document_class` with another value raises `DocumentError`.
+
+For a complete document, put the body in a template. `md2misc.default_template()` returns the text of the default template. The body goes where the template has `@@BODYTOKEN@@`, and the document class where it has `@@DOCUMENTCLASSTOKEN@@`:
+
+```python
+from md2misc import convert, default_template
+
+body = convert(markdown, document_class="book")
+tex = default_template().replace("@@BODYTOKEN@@", body).replace("@@DOCUMENTCLASSTOKEN@@", "book")
+```
 
 ## Requirements
 

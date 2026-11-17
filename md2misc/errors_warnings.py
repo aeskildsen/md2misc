@@ -1,4 +1,4 @@
-import click
+import warnings
 
 
 # -------------------------------------------------------
@@ -7,10 +7,29 @@ import click
 # ------------------------------------------------------
 
 
-class UnsupportedConstruct(click.ClickException):
+class Md2miscError(Exception):
     """
-    a Markdown construct that the output format cannot write. the command line
-    tool shows the message and exits with a non-zero status.
+    base class for all errors of md2misc. `message` holds the text of the error.
+    """
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self) -> str:
+        return self.message
+
+
+class Md2miscWarning(UserWarning):
+    """
+    the category of the warnings of md2misc. a caller can filter these warnings, or make them errors,
+    with the `warnings` module.
+    """
+
+
+class UnsupportedConstruct(Md2miscError):
+    """
+    a Markdown construct that the output format cannot write. `line` is the line of the construct, if
+    known. `describe(source)` gives the message with the name of the Markdown file.
     """
     def __init__(self, backend: str, construct: str, line: int = None):
         """
@@ -37,17 +56,15 @@ class UnsupportedConstruct(click.ClickException):
         return f"{place}the {self.backend} output cannot write this Markdown construct: {self.construct}"
 
 
-class DocumentError(click.ClickException):
+class DocumentError(Md2miscError):
     """
     a problem with the document as a whole, or with the values that the caller gives for it.
-    the command line tool shows the message and exits with a non-zero status.
     """
 
 
-class ParsingException(click.ClickException):
+class ParsingException(Md2miscError):
     """
-    base class for all parsing exceptions. the command line tool shows the message and exits with a
-    non-zero status.
+    base class for all parsing exceptions.
     """
 
 
@@ -73,51 +90,20 @@ class IndentationException(ParsingException):
         super().__init__(IndentationException.logs[key].replace("@@TOKEN@@", lstext))
 
 
-class InputException(click.ClickException):
-    """
-    base class for all errors caused by user input: files not found, invalid files...
-    the command line tool shows the message and exits with a non-zero status.
-    """
-    logs = {
-        "not_md": "ERROR - filename `@@TOKEN@@` doesn't end with `.md` "
-                  + "and doesn't seem to be a markdown file. exiting...",
-        "not_inpath": "ERROR - input file `@@TOKEN@@` not found. exiting...",
-        "not_template": "ERROR - custom tex template `@@TOKEN@@` not found. exiting...",
-        "template_no_token": "ERROR - custom tex template `@@TOKEN@@` does not contain a "
-                        + "@@BODYTOKEN@@ key. cannot perform replacement.",
-        "not_outpath": "ERROR - output directory or directories for path `@@TOKEN@@` don't "
-                       + "seem to exist. create it and start again...",
-        "outpath_slashes": "ERROR - output file path `@@TOKEN@@` contains '/' and '\\'. "
-                           + "please remove slashes or backslashes to continue."
-                           + "exiting...",
-        "document_class": "ERROR - invalid value provided for argument `--document-class`: `@@TOKEN@@`. "
-                          + "allowed values are `article` or `book`. exiting..."
-    }  # all possible error logs
-
-    def __init__(self, key, val=None):
-        """
-        :param key: the error key to select the message
-        :param val: the user inputted value which caused the error
-        """
-        super().__init__(InputException.logs[key].replace("@@TOKEN@@", val))
-
-
 class Warnings:
     """
-    class to display custom warning errors. the warnings go to standard error, thus they are not
-    part of the output that `--stdout` writes.
+    class to give custom warnings, with the category `Md2miscWarning`. the warnings do not change the output.
     """
     logs = {
-        "outpath_extension": "WARNING - file extension of output file `@@TOKEN@@` changed to `.tex`",
-        "list_deep_nesting": "WARNING - deep list nesting. you may need to change base tex options in the header.",
-        "lang_not_supported": "WARNING - language `@@TOKEN@@` is not supported by minted/Pygments. see https://pygments.org/languages/ for a list of supported languages.",
-        "link_type_not_supported": "WARNING - type of link `@@TOKEN@@` is not supported. leaving as is...",
+        "list_deep_nesting": "deep list nesting. you may need to change base tex options in the header.",
+        "lang_not_supported": "language `@@TOKEN@@` is not supported by minted/Pygments. see https://pygments.org/languages/ for a list of supported languages.",
+        "link_type_not_supported": "type of link `@@TOKEN@@` is not supported. leaving as is...",
     }
 
     def __init__(self, key, val=None):
         """
-        display a warning message to the user.
+        give a warning to the caller.
         :param key: the key pointing to the message from Warnings.log to print
         :param val: a possible value for a custom warning message.
         """
-        click.echo(Warnings.logs[key].replace("@@TOKEN@@", val), err=True)
+        warnings.warn(Warnings.logs[key].replace("@@TOKEN@@", val or ""), Md2miscWarning, stacklevel=3)

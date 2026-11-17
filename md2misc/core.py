@@ -1,6 +1,7 @@
 import importlib.resources
 
 from .backends import SchelpBackend, TeXBackend
+from .errors_warnings import DocumentError
 from .converters import MDSimple, MDQuote, MDList, MDCode, MDCleaner, MDReference, MDHeader, MDFrontmatter, MDInsertion, MDMedia, MDMath
 
 
@@ -15,19 +16,20 @@ def convert(data, unnumbered=False, document_class="article", minted_language="t
     r"""
     convert Markdown-formatted text to TeX code.
 
-    \b
-    parameters (see options if you are in `--help` mode):
-    -----------------------------------------------------
     :param data: the string containing the markdown-formatted text
     :param unnumbered: whether to convert headers as numbered chapters/sections (`\chapter{}`)
                      or as unnumbered ones (`\chapter*{}`). defaults to False:
                      the headers are numbered by default.
-    :param document_class: the document class of the tex document. defaults to `article`
+    :param document_class: the document class of the tex document: `article` (the default) or `book`.
+                           another value raises `DocumentError`.
     :param minted_language: the default language for minted code blocks
     :param override_language: whether to replace the language of every code block with `minted_language`
     :return: The converted TeX code
     """
 
+    if document_class not in TeXBackend.sectioning:
+        raise DocumentError(f"the document class `{document_class}` is not supported: "
+                            + "the document classes are `article` and `book`")
     backend = TeXBackend(unnumbered, document_class, minted_language, override_language)
     return run_pipeline(data, backend)
 

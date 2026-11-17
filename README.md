@@ -11,7 +11,7 @@ Each output format is a *backend*:
 
 ## Installation
 
-`md2misc` needs Python 3.10 or later. Its only dependency is `click`.
+`md2misc` needs Python 3.10 or later. It uses only the Python standard library.
 
 ```bash
 pip install git+https://github.com/aeskildsen/md2misc
@@ -41,13 +41,24 @@ schelp = convert_schelp(markdown, metadata={"class": "MyClass"})
 target.write_text(schelp)
 ```
 
-The package also installs a small `md2misc` CLI for one-off conversions. See [docs/cli.md](docs/cli.md).
+A script can also put a checkout of this repository (for example a git submodule) first on `sys.path` and import `md2misc` from it, with no installation.
+
+## Errors and warnings
+
+All errors are subclasses of `md2misc.Md2miscError`:
+
+- `UnsupportedConstruct`: the output format has no form for a Markdown construct. `line` is the line of the construct, if known, and `describe(source)` gives a message with the file name, for example `docs/MyClass.md:12: ...`.
+- `DocumentError`: a problem with the document as a whole, or with an argument.
+- `ParsingException`: badly formed Markdown, for example a list with bad indentation.
+
+Warnings have the category `md2misc.Md2miscWarning`. Use the `warnings` module to filter them or to make them errors.
+
+Version 0.2.0 removed the `md2misc` command and the dependency on `click`.
 
 ## Documentation
 
 - [docs/tex.md](docs/tex.md): the TeX backend, the supported Markdown and the rules for lists
 - [docs/schelp.md](docs/schelp.md): the schelp backend, the header, the insertion points and the constructs that stop the conversion
-- [docs/cli.md](docs/cli.md): the `md2misc` CLI command
 - [docs/development.md](docs/development.md): how to run the tests
 
 ## Origin
