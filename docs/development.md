@@ -31,3 +31,12 @@ GitHub Actions (`.github/workflows/tests.yml`) runs all tests against the instal
 
 - `python3 tests/battery.py build` makes the TeX fixtures. It needs `pip install -e ".[battery]"` and private checkouts of the book that the fixtures come from, so contributors do not run it. The `.tex` files are the frozen reference (the output of `md2tex`).
 - `python3 tests/schelp_fixtures.py update` makes the `.schelp` and `.html` files and `SCLANG_VERSION`. Read the diff afterwards. After an update of SuperCollider, the HTML can change: make the files again and read the diff.
+
+## Releases
+
+A release is an annotated git tag `vX.Y.Z` on `main`. Other projects pin md2misc to a tag (for example as a git submodule), so do not move or delete a tag after it is pushed.
+
+1. Set `version` in `pyproject.toml` to the new version, in the same commit as the last change of the release or in a commit of its own.
+2. Make sure that GitHub Actions passes on that commit of `main`. GitHub Actions runs the SCDoc tests too, so SuperCollider is not necessary on your computer.
+3. Tag that commit: `git tag -a vX.Y.Z -m "md2misc X.Y.Z"`. The tag and the version in `pyproject.toml` must agree.
+4. Push the tag: `git push origin vX.Y.Z`. A GitHub release for the tag is optional.
