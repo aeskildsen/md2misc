@@ -23,6 +23,7 @@ CASE_NAMES = [f"case-{i:02}" for i in range(len(CASES))]
 SECTIONS = {
     "structure": ["Description", "Class Methods", "Instance Methods", "Examples", "References"],
     "title": ["Description", "A named section"],
+    "methods": ["Description", "Class Methods", "Instance Methods", "Examples"],
 }
 
 

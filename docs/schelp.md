@@ -37,6 +37,77 @@ A line `<!-- md2misc: NAME -->` is an insertion point. Markdown viewers do not s
 
 An insertion point with no text gives nothing. Text for a name that the file does not have stops the conversion.
 
+## Class methods
+
+A level 2 heading `## Class methods` gives `CLASSMETHODS::`. In this section, md2misc writes the methods, their arguments and their return values from Markdown that GitHub shows as it is:
+
+```markdown
+## Class methods
+
+### *ar, *kr
+
+Plays grains from a buffer.
+
+| Argument | Range | What it does |
+|---|---|---|
+| `bufnum` | | A mono buffer. |
+| `grainDur` | seconds | The length of a grain. |
+
+Returns: two channels.
+```
+
+gives
+
+```
+CLASSMETHODS::
+
+METHOD::ar, kr
+
+Plays grains from a buffer.
+
+ARGUMENT::bufnum
+A mono buffer.
+
+ARGUMENT::grainDur
+The length of a grain.
+Range: seconds
+
+returns::two channels.
+```
+
+- A level 3 heading `### *name` starts a method. More names share one entry: `### *ar, *kr`. In the section, every level 3 heading must be a method, and deeper headings stop the conversion.
+- The text after the method heading is the text of the method.
+- The argument table follows the text. Each row is an argument. The first column is the name, plain or as code (`` `bufnum` ``). The last column is the text of the argument. Each column between them adds a line `heading: value` to the text, if its cell is not empty. The text of the header row of the first and last columns is not used.
+- A paragraph that starts with `Returns:` gives `returns::`. It can follow the table, or the text if the method has no arguments.
+
+SCDoc puts all text after an argument into that argument, and all text after `returns::` into the return value. Thus a method has its parts in this order: text, table, `Returns:` paragraph. Text after the table (other than `Returns:`), or after the `Returns:` paragraph, stops the conversion.
+
+The section ends at the next level 2 heading. Outside a method of this section, a `Returns:` paragraph is text, and a table stops the conversion.
+
+An insertion point can also hold a `CLASSMETHODS::` section that a program writes (see above). Use either the insertion point or the `## Class methods` section, not both.
+
+### The argument table
+
+The table is a pipe table of GitHub Flavored Markdown (GFM), with the same rules as on GitHub:
+
+- A header row, a delimiter row and one row for each argument. The pipes at the start and at the end of a row are optional, and a row can have them or not.
+- Each cell of the delimiter row is one or more hyphens, with an optional colon at each end (`---`, `:--`, `:-:`). The colons give the alignment, which schelp does not use.
+- A table can have an indent of up to 3 spaces. It can follow the last line of a paragraph directly.
+- A row with fewer cells than the header gets empty cells.
+- Spaces around a cell are removed. `\|` in a cell is a `|`, also in code (`` `a \| b` ``).
+- The table ends at an empty line or at the start of another block: a heading, a code block, a list, a block quote or a horizontal rule.
+
+Where Markdown renderers do not agree, or where GitHub does not show what md2misc writes, the table stops the conversion, with its line:
+
+- a delimiter row with more or fewer cells than the header row (GitHub shows text, not a table)
+- a row with more cells than the header row (GitHub drops the extra cells)
+- a `|` in code in a cell (GitHub splits the cell there, Pandoc does not): write `\|`
+- `\\|` in a row
+- a line without `|` directly after the table (GitHub takes it as a row, Pandoc as text): put an empty line before it
+- a table without rows, a table with one column, a column between the first and the last without a heading
+- an argument name that is not a name (letters, digits and `_`, not a digit first), a name twice in one table, an argument without text
+- a second table in a method, or a table after `Returns:`
+
 ## The body
 
 | Markdown | schelp |
@@ -81,7 +152,8 @@ Three rules of the schelp backend are those of CommonMark and Pandoc, not those 
 - a second level 1 heading, and a heading underlined with `=` or `-`
 - block quotes that are not alerts
 - links that are not `http` URLs or `sc:` links, links in `<` and `>`, a `#` in the text of a link (SCDoc splits a link at each `#`; a link without a label, where the text is the address or the name of the page, is fine), and more than one `#` in the address of a link
-- citations, images and audio files, tables, HTML tags and HTML comments (other than insertion points), `<br>` tags
+- citations, images and audio files, HTML tags and HTML comments (other than insertion points), `<br>` tags
+- tables, other than the argument table of a method in the class methods section (see [Class methods](#class-methods), also for the rules of that section)
 - horizontal rules (`---`, `***`, `___`)
 - lists with `*` or `+` marks, and numbered lists with `1)`
 - a footnote with more than one line

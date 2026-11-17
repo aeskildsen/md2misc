@@ -37,6 +37,9 @@ UNSUPPORTED = [
     ("See [a method](sc:Classes/SinOsc#a#b).\n", "link with more than one `#`", 1),
 ]
 
+# The heading of the class methods section, for the cases of the section.
+M = "## Class methods\n\n"
+
 # Markdown that has no schelp form, which the converters take for text: only the check of the source stops at it.
 SOURCE_ONLY = [
     ("* One\n* Two\n", "list with `*` or `+` marks", 1),
@@ -47,6 +50,46 @@ SOURCE_ONLY = [
     ("A title\n=======\n\nText.\n", "heading underlined with `=` or `-`", 2),
     ("Text.\n\nA title\n-------\n", "heading underlined with `=` or `-`", 4),
     ("Text.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n", "table", 3),
+] + [(M + markdown, construct, line + 2) for markdown, construct, line in [
+    # the class methods section (M is its heading): the markdown starts at line 3
+    ("| a | b |\n|---|---|\n| x | y |\n", "table outside a method", 1),
+    ("Intro.\n\n| a | b |\n|---|---|\n| x | y |\n", "table outside a method", 3),
+    ("### *ar\n\nText.\n\n## Examples\n\n| a | b |\n|---|---|\n| x | y |\n", "table (only the argument table", 7),
+    ("### *ar\n\n| a | b |\n|---|\n| x | y |\n", "delimiter row has another number of cells", 4),
+    ("### *ar\n\n| a | b |\n|---|---|---|\n| x | y |\n", "delimiter row has another number of cells", 4),
+    ("### *ar\n\n| a |\n|---|\n| x |\n", "argument table with one column", 3),
+    ("### *ar\n\n| a | | b |\n|---|---|---|\n| x | 1 | y |\n", "column without a heading", 3),
+    ("### *ar\n\n| a | b |\n|---|---|\n", "table without rows", 3),
+    ("### *ar\n\n| a | b |\n|---|---|\n\nText.\n", "table without rows", 3),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\nMore text.\n", "line without `|` after a table", 6),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y | z |\n", "more cells than the header", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n| w | v | u |\n", "more cells than the header", 6),
+    ("### *ar\n\n| a | b |\n|---|---|\n| two words | y |\n", "argument name `two words`", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| *ar | y |\n", "argument name `*ar`", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| 1x | y |\n", "argument name `1x`", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| **x** | y |\n", "argument name `**x**`", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| | y |\n", "argument name ``", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| `x | y |\n", "argument name", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n| `x` | z |\n", "argument `x` twice", 6),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | |\n", "argument `x` without text", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x |\n", "argument `x` without text", 5),
+    ("### *ar\n\n| a | r | b |\n|---|---|---|\n| x | 1 |\n", "argument `x` without text", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | Code `a|b`. |\n", "`|` in code in a table", 5),
+    ("### *ar\n\n| `a|b` | c |\n|---|---|\n| x | y |\n", "`|` in code in a table", 3),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y \\\\| z |\n", "`\\\\|` in a table row", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n\n| a | b |\n|---|---|\n| w | v |\n", "second table", 7),
+    ("### *ar\n\nReturns: x.\n\n| a | b |\n|---|---|\n| w | v |\n", "table after `Returns:`", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n\nMore text.\n", "text after the argument table", 7),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n- A list.\n", "text after the argument table", 6),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n\n```\nx = 1;\n```\n", "text after the argument table", 7),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n\n> [!NOTE]\n> A note.\n", "text after the argument table", 7),
+    ("### *ar\n\nReturns: x.\n\nMore text.\n", "text after the `Returns:` paragraph", 5),
+    ("### *ar\n\n| a | b |\n|---|---|\n| x | y |\n\nReturns: x.\n\nReturns: y.\n", "text after the `Returns:`", 9),
+    ("### Arguments\n\nText.\n", "heading in the class methods section that is not a method", 1),
+    ("### ar\n\nText.\n", "heading in the class methods section that is not a method", 1),
+    ("### *ar *kr\n\nText.\n", "heading in the class methods section that is not a method", 1),
+    ("### *ar\n\n#### Details\n\nText.\n", "heading in the class methods section that is not a method", 3),
+]] + [
     ("See <https://example.com>.\n", "link in `<` and `>`", 1),
     ("Mail <me@example.com>.\n", "link in `<` and `>`", 1),
     ("Press <kbd>Ctrl</kbd>.\n", "HTML tag", 1),
@@ -88,6 +131,17 @@ SUPPORTED = [
     "A link to [Classes/SinOsc#*ar](sc:Classes/SinOsc#*ar), which has the address as its text.\n",
     "Text.[^1]\n\n[^1]: A note.\n[^2]: Another note.\n",
     "Text.\n\n= is a sign, after an empty line.\n",
+    "A text with a | pipe, and a | b.\n",
+    "Code with a pipe: `a | b`.\n",
+    "```\n| a | b |\n|---|---|\n| 1 | 2 |\n```\n",
+    "| a | b |\n\n|---|---|\n",
+    "Returns: in a section that is not the class methods section.\n",
+    "## Section\n\n### *ar\n\nA heading with a star, outside the class methods section.\n",
+    "## Class methods\n\n### *ar\n\nText with a | pipe.\n\n| a | b |\n|---|---|\n| x | y |\n",
+    "## Class methods\n\n### *ar\n\n| a | b |\n|---|---|\n| x | y |\n### *kr\n\nText.\n",
+    "## Class methods\n\n### *ar\n\n| a | b |\n|---|---|\n| x | y |\n## Examples\n\nText.\n",
+    "## Class methods\n\n### *ar\n\n| a | b |\n|---|---|\n| x | Code `a \\| b`. |\n",
+    "## Class methods\n\n### *ar\n\n```\n| a | b |\n```\n\n| a | b |\n|---|---|\n| x | y |\n",
 ]
 
 # Markdown, and the parts of the HTML page that SCDoc must make from the schelp output. The cases of SUPPORTED are

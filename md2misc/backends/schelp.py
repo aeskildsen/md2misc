@@ -2,7 +2,7 @@ import re
 from itertools import chain
 
 from .base import Backend
-from .. import syntax
+from .. import syntax, tables
 from ..errors_warnings import DocumentError, UnsupportedConstruct
 
 
@@ -46,7 +46,20 @@ class SchelpBackend(Backend):
     tag_regex = r"\w::"
 
     # the sections that SCDoc tells apart from other sections, by the text of a level 2 heading
-    special_sections = {"description": "DESCRIPTION", "examples": "EXAMPLES"}
+    special_sections = {"description": "DESCRIPTION", "examples": "EXAMPLES", "class methods": "CLASSMETHODS"}
+
+    # the section whose methods and argument tables the converters write as `METHOD::` and `ARGUMENT::`
+    methods_section = "class methods"
+    supports_methods = True
+
+    # a class method heading in the class methods section: `### *ar`, or `### *ar, *kr` for more names
+    method_heading_regex = r"^#{3}[ \t]+(\*[A-Za-z_]\w*([ \t]*,[ \t]*\*[A-Za-z_]\w*)*)[ \t]*$"
+
+    # the name of an argument in the first cell of an argument table: a name, or a name in code
+    argument_name_regex = r"(`?)([A-Za-z_]\w*)\1"
+
+    # a paragraph that starts with this text is the return value of a method
+    returns_mark = "Returns:"
 
     # the keys of the front matter. the values of these keys are lists
     header_keys = ["class", "title", "summary", "related", "categories"]
@@ -175,7 +188,6 @@ class SchelpBackend(Backend):
     footnote_mark_regex = r"\[\^\d+\]"
     thematic_break_regex = r" {0,3}([-*_])([ \t]*\1){2,}[ \t]*$"
     setext_underline_regex = r" {0,3}(=+|-+)[ \t]*$"
-    table_delimiter_regex = r"[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)+\|?[ \t]*$|[ \t]*\|[ \t]*:?-+:?[ \t]*\|[ \t]*$"
     autolink_regex = r"<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*|[^\s<>@]+@[^\s<>]+)>"
     html_tag_regex = r"</?[A-Za-z][A-Za-z0-9-]*(\s[^<>]*)?/?>"
 
@@ -196,6 +208,78 @@ class SchelpBackend(Backend):
         if re.search(syntax.LINK, text) or re.search(self.footnote_mark_regex, text):
             self.unsupported("link or footnote in a heading", line)
 
+    def _check_table(self, lines: list, number: int, in_methods: bool, in_method: bool) -> int:
+        """
+        check the table whose header row is `lines[number]`. a table is only possible as the argument table of a
+        method in the class methods section. the first column is the argument name, the last column its text;
+        the columns between them add `heading: value` to the text.
+        :return: the index after the last row of the table
+        """
+        header_line = number + 1
+        if not in_methods:
+            self.unsupported("table (only the argument table of a method in the `## Class methods` section)",
+                             header_line)
+        if not in_method:
+            self.unsupported("table outside a method (put a heading like `### *ar` before it)", header_line)
+        end = tables.table_end(lines, number)
+        for index in range(number, end):
+            raw = lines[index]
+            if "\\\\|" in raw:
+                self.unsupported("`\\\\|` in a table row (Markdown renderers read it in different ways)", index + 1)
+            for code in re.finditer(r"`[^`\n]*`", raw):
+                if tables.has_pipe(code[0]):
+                    self.unsupported("`|` in code in a table (write `\\|`)", index + 1)
+        header = tables.split_row(lines[number])
+        if len(tables.split_row(lines[number + 1])) != len(header):
+            self.unsupported("table whose delimiter row has another number of cells than its header row",
+                             header_line + 1)
+        if len(header) < 2:
+            self.unsupported("argument table with one column (the first column is the name, the last the text)",
+                             header_line)
+        if not all(header[1:-1]):
+            self.unsupported("argument table column without a heading", header_line)
+        if end == number + 2:
+            self.unsupported("table without rows", header_line)
+        names = set()
+        for index in range(number + 2, end):
+            row = lines[index]
+            if not tables.has_pipe(row):
+                self.unsupported("line without `|` after a table (put an empty line before it)", index + 1)
+            cells = tables.split_row(row)
+            if len(cells) > len(header):
+                self.unsupported("table row with more cells than the header row", index + 1)
+            name = re.fullmatch(self.argument_name_regex, cells[0])
+            if not name:
+                self.unsupported(f"argument name `{cells[0]}` (a name, or a name in code)", index + 1)
+            if name[2] in names:
+                self.unsupported(f"argument `{name[2]}` twice in a table", index + 1)
+            names.add(name[2])
+            if len(cells) < len(header) or not cells[-1]:
+                self.unsupported(f"argument `{name[2]}` without text", index + 1)
+        return end
+
+    def _check_method_part(self, lines: list, number: int, in_methods: bool, part):
+        """
+        check a line of a method in the class methods section, after the method heading, and give the part of the
+        method that the line is in. the parts of a method are its text, its argument table and its return value,
+        in this order. SCDoc puts all text after an argument into that argument, and all text after `returns::`
+        into the return value: thus only a `Returns:` paragraph can follow the table, and nothing can follow it.
+        headings and tables are checked in `check_source()`.
+        """
+        line = lines[number]
+        if (not in_methods or part is None or not line.strip() or re.match(syntax.HEADING_STRICT, line)
+                or tables.starts_table(lines, number)):
+            return part
+        paragraph_start = number == 0 or not lines[number - 1].strip()
+        if paragraph_start and line.startswith(self.returns_mark) and part != "returns":
+            return "returns"
+        if part == "table":
+            self.unsupported("text after the argument table of a method (only a `Returns:` paragraph can follow it)",
+                             number + 1)
+        if part == "returns" and paragraph_start:
+            self.unsupported("text after the `Returns:` paragraph of a method", number + 1)
+        return part
+
     def check_source(self, markdown: str):
         r"""
         stop at the first Markdown construct that has no schelp form, and name its line.
@@ -208,10 +292,20 @@ class SchelpBackend(Backend):
 
         in_code = False
         previous_is_quote = False
+        # the class methods section: in a method, the parts after the text are the argument table and then the
+        # return value. `method_part` is the last part: None (no method), "text", "table" or "returns"
+        in_methods = False
+        method_part = None
+        table_end = 0  # the index after the last row of the last table
+        delimiter_rows = set()
         for number, line in enumerate(lines):
             line_number = number + 1
             previous = lines[number - 1] if number else ""
             fences = line.count(syntax.CODE_FENCE)
+            if number in delimiter_rows:
+                continue
+            if not in_code and number >= table_end:
+                method_part = self._check_method_part(lines, number, in_methods, method_part)
             if in_code:
                 if fences % 2:
                     in_code = False
@@ -237,11 +331,28 @@ class SchelpBackend(Backend):
 
             heading = re.match(syntax.HEADING_STRICT + r"(.*)", text)
             if heading:
-                if len(heading[2]) == 1:
+                level = len(heading[2])
+                if level == 1:
                     level_1_headings += 1
                     if level_1_headings > 1:
                         self.unsupported("second level 1 heading (the first one is the title of the document: use level 2 for sections)", line_number)
-                self._check_heading_source(heading[3], line_number)
+                if level == 2:
+                    in_methods = heading[3].strip().lower() == self.methods_section
+                    method_part = None
+                if in_methods and level == 3 and re.match(self.method_heading_regex, line):
+                    method_part = "text"
+                elif in_methods and level >= 3:
+                    self.unsupported("heading in the class methods section that is not a method "
+                                     "(a method heading is like `### *ar` or `### *ar, *kr`)", line_number)
+                else:
+                    self._check_heading_source(heading[3], line_number)
+            if number >= table_end and tables.starts_table(lines, number):
+                table_end = self._check_table(lines, number, in_methods, method_part is not None)
+                delimiter_rows.add(number + 1)
+                if method_part in ("table", "returns"):
+                    self.unsupported("second table in a method, or a table after `Returns:`", line_number)
+                if method_part is not None:
+                    method_part = "table"
             if re.match(self.setext_underline_regex, text) and self._is_paragraph_line(previous):
                 self.unsupported("heading underlined with `=` or `-` (use `#` before the heading)", line_number)
             if re.match(syntax.RULE, text) or re.match(self.thematic_break_regex, text):
@@ -250,8 +361,6 @@ class SchelpBackend(Backend):
                 self.unsupported("list with `*` or `+` marks (use `-`)", line_number)
             if re.match(r"[\s>]*\d+\)[ \t]+\S", text):
                 self.unsupported("numbered list with `)` after the number (use `1.`)", line_number)
-            if "|" in previous and re.match(self.table_delimiter_regex, text):
-                self.unsupported("table", line_number - 1)
             if re.search(syntax.LINE_BREAK, text):
                 self.unsupported("line break tag", line_number)
             if re.search(syntax.AUDIO, text):

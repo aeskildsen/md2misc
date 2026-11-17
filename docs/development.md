@@ -26,6 +26,8 @@ GitHub Actions (`.github/workflows/tests.yml`) runs all tests against the instal
 - `tests/test_schelp_errors.py`: the constructs without a schelp form stop the conversion with the file, line and construct, and look-alikes in code are accepted.
 - `tests/test_schelp_writer.py`: the writers of the schelp backend stop at the constructs too, when the check of the source does not find them.
 - `tests/test_schelp_behavior.py`: the output of single cases.
+- `tests/test_schelp_methods.py`: the class methods section: method headings, the forms of the argument table, the cells and the return value.
+- `tests/test_tables.py`: the rows of a pipe table (`md2misc/tables.py`): which lines are a table, the cells and the end of the table. The expected values are those of cmark-gfm, the GFM parser of GitHub, where a comment does not say otherwise.
 - `tests/test_tex_library.py`: the arguments of `convert`, the default template, the warnings and the errors of the TeX backend, and that the package needs only the standard library.
 
 ## Fixture tools

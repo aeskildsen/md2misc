@@ -1,0 +1,44 @@
+CLASS::Md2miscTestMethods
+SUMMARY::The class methods section, with argument tables
+CATEGORIES::Tests
+
+DESCRIPTION::
+
+A page with methods, argument tables and return values.
+
+CLASSMETHODS::
+
+Two methods.
+
+METHOD::ar, kr
+
+Plays grains from a buffer.
+
+ARGUMENT::bufnum
+A mono buffer. strong::Silence:: without one.
+
+ARGUMENT::grainDur
+The length of a grain. See link::Classes/SinOsc::.
+Range: seconds
+
+ARGUMENT::mode
+The mode: code::a | b:: in code, and 1 | 2 in text.
+Range: code::0:: | code::1::
+
+ARGUMENT::pan
+> 0 is right, < 0 is left.
+Range: −1 to 1
+
+returns::an array of two channels.
+
+METHOD::new
+
+Makes an instance.
+
+returns::a new instance.
+
+EXAMPLES::
+
+code::
+Md2miscTestMethods.ar(0, grainDur: 0.1);
+::

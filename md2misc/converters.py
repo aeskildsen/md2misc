@@ -1,7 +1,7 @@
 import re
 from itertools import chain
 
-from . import syntax
+from . import syntax, tables
 from .helpers import process_list_indentation
 from .errors_warnings import Warnings
 from .backends import Backend
@@ -659,3 +659,87 @@ class MDInsertion:
         if not backend.supports_insertions:
             return string
         return re.sub(MDInsertion.placeholder, lambda m: backend.insertion(m[1]), string, flags=re.M)
+
+
+class MDMethods:
+    """
+    the class methods section of a SuperCollider help page (`## Class methods`): method headings (`### *ar`),
+    the argument table of each method and its return value (a paragraph that starts with `Returns:`).
+    `SchelpBackend.check_source()` checks the section first, with the line numbers.
+
+    two steps, as for headings: `mark()` replaces the constructs by markers before the text is escaped, and
+    `convert()` writes the tags after the other steps. the marker lines start with a control character, so that
+    no other step takes a cell text for a list, a quote or a heading.
+    """
+    marker = "\x02"
+    separator = "\x03"  # between the text of an argument and the values of the other columns
+    level_2_regex = r"^##(?!#)[ \t]+(.*?)[ \t]*$"
+
+    @staticmethod
+    def _arguments(lines: list, number: int, end: int) -> list:
+        """
+        the marker lines of the arguments of the table from `lines[number]` (the header row) to `lines[end]`.
+        """
+        header = [tables.unescape(cell) for cell in tables.split_row(lines[number])]
+        out = []
+        for row in lines[number + 2:end]:
+            cells = [tables.unescape(cell) for cell in tables.split_row(row)]
+            cells += [""] * (len(header) - len(cells))
+            name = cells[0].strip("`")
+            others = [f"{header[i]}: {cells[i]}" for i in range(1, len(header) - 1) if cells[i]]
+            out.append(MDMethods.marker + "ARGUMENT" + MDMethods.marker + name + MDMethods.marker + cells[-1]
+                       + "".join(MDMethods.separator + other for other in others))
+        return out
+
+    @staticmethod
+    def mark(string: str, backend: Backend):
+        """
+        replace the method headings, argument tables and return values of the class methods section by markers.
+        :param string: the markdown text, with the code blocks taken out
+        :param backend: the output format
+        :return: the updated text
+        """
+        if not getattr(backend, "supports_methods", False):
+            return string
+        lines = string.split("\n")
+        out = []
+        in_methods = in_method = False
+        number = 0
+        while number < len(lines):
+            line = lines[number]
+            section = re.match(MDMethods.level_2_regex, line)
+            method = re.match(backend.method_heading_regex, line) if in_methods else None
+            if section:
+                in_methods = section[1].strip().lower() == backend.methods_section
+                in_method = False
+            elif method:
+                names = ", ".join(name.strip()[1:] for name in method[1].split(","))
+                out += ["", MDMethods.marker + "METHOD" + MDMethods.marker + names, ""]
+                in_method = True
+                number += 1
+                continue
+            elif in_method and tables.starts_table(lines, number):
+                end = tables.table_end(lines, number)
+                out += [""] + "\n\n".join(MDMethods._arguments(lines, number, end)).split("\n") + [""]
+                number = end
+                continue
+            elif (in_method and line.startswith(backend.returns_mark)
+                  and (number == 0 or not lines[number - 1].strip())):
+                line = (MDMethods.marker + "RETURNS" + MDMethods.marker
+                        + line[len(backend.returns_mark):].strip())
+            out.append(line)
+            number += 1
+        return "\n".join(out)
+
+    @staticmethod
+    def convert(string: str, backend: Backend):
+        """
+        write the tags of the markers of `mark()`.
+        """
+        if not getattr(backend, "supports_methods", False):
+            return string
+        m, s = MDMethods.marker, MDMethods.separator
+        string = re.sub(m + "METHOD" + m + "(.*)", r"METHOD::\1", string)
+        string = re.sub(m + "ARGUMENT" + m + "(.*?)" + m, r"ARGUMENT::\1\n", string)
+        string = re.sub(m + "RETURNS" + m, "returns::", string)
+        return string.replace(s, "\n")

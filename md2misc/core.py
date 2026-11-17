@@ -2,7 +2,7 @@ import importlib.resources
 
 from .backends import SchelpBackend, TeXBackend
 from .errors_warnings import DocumentError
-from .converters import MDSimple, MDQuote, MDList, MDCode, MDCleaner, MDReference, MDHeader, MDFrontmatter, MDInsertion, MDMedia, MDMath
+from .converters import MDSimple, MDQuote, MDList, MDCode, MDCleaner, MDReference, MDHeader, MDFrontmatter, MDInsertion, MDMedia, MDMath, MDMethods
 
 
 def default_template() -> str:
@@ -72,9 +72,12 @@ def run_pipeline(data, backend):
 
     # complex replacements
     data = MDCode.block_code(data, backend)   #  the contents of code blocks and inline code strings
-    data = MDCode.inline_code(data, backend)  #  must be interpreted verbatim. therefore,
+    #                                            must be interpreted verbatim. therefore,
     #                                            these functions come first so that they won't be changed
     #                                            by `prepare_markdown()`
+    data = MDMethods.mark(data, backend)      #  argument tables: after code blocks, and before inline code,
+    #                                            because a `\|` in inline code in a cell is a `|`
+    data = MDCode.inline_code(data, backend)
     data = MDInsertion.apply(data, backend)   #  text of the caller is not changed, either
     data, mathdict = MDMath.stash_math(data, backend)
     data, codedict = MDCleaner.prepare_markdown(data, backend)  # remove code from the pipeline
@@ -91,6 +94,7 @@ def run_pipeline(data, backend):
     data = MDReference.citation(data, backend)
     data = MDList.definition_l(data, backend)
     data = MDHeader.convert(data, backend)
+    data = MDMethods.convert(data, backend)
 
     # "simple" replacements: bold, italics and the like
     data = MDSimple.convert(data, backend)
