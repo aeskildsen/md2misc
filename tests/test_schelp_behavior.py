@@ -266,3 +266,18 @@ def test_hash_without_a_space_after_it_is_text():
 
 def test_quotation_marks_stay():
     assert convert_schelp("He said \"it is 'fine' now\".\n") == "He said \"it is 'fine' now\".\n"
+
+
+@pytest.mark.parametrize("markdown, schelp", [
+    ("A word**bold**.\n", "A word\u2060strong::bold::.\n"),
+    ("A word*italic*.\n", "A word\u2060emphasis::italic::.\n"),
+    ("A word`code`.\n", "A word\u2060code::code::.\n"),
+    ("A word[link](https://example.com).\n", "A word\u2060link::https://example.com##link::.\n"),
+    ("A word$x$.\n", "A word\u2060math::x::.\n"),
+    ("A word[^1].\n\n[^1]: A note.\n", "A word footnote::A note.::.\n"),
+    ("A word **bold** and 2**bold**.\n", "A word strong::bold:: and 2strong::bold::.\n"),
+], ids=["bold", "italic", "code", "link", "math", "footnote", "no letter before"])
+def test_tag_directly_after_a_letter(markdown, schelp):
+    # SCDoc takes letters directly before `::` as the name of a tag: a word joiner (U+2060), or a space before a
+    # footnote, keeps the word and the tag apart
+    assert convert_schelp(markdown) == schelp

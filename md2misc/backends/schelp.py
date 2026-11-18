@@ -957,9 +957,20 @@ class SchelpBackend(Backend):
         # `inline_code()` and `code_block()` stored the code and put tokens in the text already
         return string, self.stash
 
+    # SCDoc reads letters directly before `::` as the name of a tag: `wordstrong::` is a tag `wordstrong`, which is
+    # an error. a character that is not a letter keeps the word and the tag apart. the word joiner (U+2060) is not
+    # visible and does not let a line break between them
+    word_joiner = "\u2060"
+    after_letter = r"(?<=[^\W\d_])"
+
     def clean(self, string: str) -> str:
-        # the footnotes of the author (the footnotes of citations are stashed, see `write_citations()`)
-        string = re.sub(r"(?<=[^\W\d_])footnote::", " footnote::", string)
+        # SCDoc removes a space before a footnote mark: a footnote gets a space. the footnotes of citations have it
+        # already (see `write_citations()`)
+        string = re.sub(self.after_letter + r"footnote::", " footnote::", string)
+        # the other inline tags get a word joiner. code and math are still tokens here
+        string = re.sub(self.after_letter + r"(?=(strong|emphasis|link)::|" + syntax.MATH_TOKEN_REGEX + "|"
+                        + re.escape(self.code_token[0]) + r"\d+" + re.escape(self.code_token[0]) + ")",
+                        self.word_joiner, string)
         # paragraphs are separated by one empty line; the document ends with one line ending
         string = re.sub(r"\n{3,}", "\n\n", string).strip("\n")
         return string + "\n" if string else ""

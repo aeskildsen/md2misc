@@ -163,7 +163,7 @@ Italic text cannot hold other tags in SCDoc: thus code, math, links, footnotes, 
 
 `[^1]` and `[^1]: text` give `footnote::text::` at the place of the mark. SCDoc puts the footnotes at the end of the page. A footnote can have more than one line and more than one paragraph: the lines of a later paragraph have an indent of 4 spaces or a tab. A list, a code block or another block in a footnote stops the conversion.
 
-SCDoc does not find a tag directly after a letter, but it removes the space before a footnote mark. Thus md2misc puts a space between a letter and `footnote::`.
+A footnote directly after a word gets a space before its tag (see [Escapes](#escapes)). SCDoc removes this space from the page.
 
 ## Citations
 
@@ -221,6 +221,8 @@ The `sc:` address is the one convention that only `md2misc` understands. The res
 In text, `::`, `##` and `||` get a backslash, because SCDoc takes them as markup. In code, only a `::` inside inline code, and a line with `::` alone in a code block, get a backslash.
 
 If the text of an inline tag (bold, italic, inline code, a link, inline math, a footnote) ends with `:` or `\`, a space comes before the end-tag `::`, because SCDoc takes the character as part of the end-tag. SCDoc does not show the space.
+
+SCDoc takes letters directly before `::` as the name of a tag: in `wordstrong::bold::`, the tag is `wordstrong`, which is an error. Thus an inline tag directly after a letter (`word**bold**`) gets a word joiner (U+2060) before it: `word⁠strong::bold::`. The word joiner is not visible and does not let a line break between the word and the tag. It stays in the HTML. A footnote gets a space in place of the word joiner, because SCDoc removes the space before a footnote mark.
 
 ### Differences from the TeX backend
 

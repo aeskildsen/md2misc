@@ -204,6 +204,12 @@ RENDERS = [
     ("> One\n> line.\n>\n> Two.\n>\n> Three:\n\n- A list after it.\n",
      ['<p><em>"One line.</em>\n<p><em>Two.</em>\n<p><em>Three:"</em>']),
     ("> [!NOTE]\n> One.\n>\n> Two.\n", ["One.\n<p>Two."]),
+    # a tag directly after a letter: SCDoc needs a character between them that is not a letter
+    ("A word**bold**, a word*italic*, a word`code`, a word[link](https://example.com) and a word$x$.\n",
+     ["A word\u2060<strong>bold</strong>, a word\u2060<em>italic</em>, a word\u2060<code>code</code>, "
+      'a word\u2060<a href="https://example.com">link</a> and a word\u2060<span class=\'math\'>x</span>.']),
+    ("Café**bold** and x_**bold** and 2**bold**.\n",
+     ["Café\u2060<strong>bold</strong> and x_<strong>bold</strong> and 2<strong>bold</strong>."]),
     ("A word[^1] and a word [^2].\n\n[^1]: One.\n[^2]: Two.\n",
      ["<p>A word<a class='footnote anchor' name='footnote_org_1'", "and a word<a class='footnote anchor'"]),
     ("Text.[^1] After.\n\n[^1]: Line one\n  and line two.\n",
