@@ -11,7 +11,7 @@ Each output format is a *backend*:
 
 ## Installation
 
-`md2misc` needs Python 3.10 or later. It uses only the Python standard library.
+`md2misc` needs Python 3.10 or later. It uses only the Python standard library. The citations of the schelp backend need the program [`pandoc`](https://pandoc.org) (see [docs/schelp.md](docs/schelp.md#citations)).
 
 ```bash
 pip install git+https://github.com/aeskildsen/md2misc

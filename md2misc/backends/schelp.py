@@ -2,7 +2,7 @@ import re
 from itertools import chain
 
 from .base import Backend
-from .. import syntax, tables
+from .. import citations, syntax, tables
 from ..errors_warnings import DocumentError, UnsupportedConstruct
 
 
@@ -46,14 +46,25 @@ class SchelpBackend(Backend):
     tag_regex = r"\w::"
 
     # the sections that SCDoc tells apart from other sections, by the text of a level 2 heading
-    special_sections = {"description": "DESCRIPTION", "examples": "EXAMPLES", "class methods": "CLASSMETHODS"}
+    special_sections = {"description": "DESCRIPTION", "examples": "EXAMPLES", "class methods": "CLASSMETHODS",
+                        "instance methods": "INSTANCEMETHODS"}
 
-    # the section whose methods and argument tables the converters write as `METHOD::` and `ARGUMENT::`
-    methods_section = "class methods"
+    # the sections whose methods and argument tables the converters write as `METHOD::` and `ARGUMENT::`, and the
+    # mark before the name of each method in a method heading. SCDoc uses the same marks in the anchors of methods
+    methods_sections = {"class methods": "*", "instance methods": "-"}
     supports_methods = True
 
-    # a class method heading in the class methods section: `### *ar`, or `### *ar, *kr` for more names
-    method_heading_regex = r"^#{3}[ \t]+(\*[A-Za-z_]\w*([ \t]*,[ \t]*\*[A-Za-z_]\w*)*)[ \t]*$"
+    # a heading that starts the discussion of a method, after its arguments and its return value
+    discussion_heading_regex = r"^#{4}[ \t]+[Dd]iscussion[ \t]*$"
+
+    @staticmethod
+    def method_heading_regex(mark: str) -> str:
+        """
+        the form of a method heading in a methods section: `### *ar`, or `### *ar, *kr` for more names. `mark` is
+        the mark of the section (`*` or `-`).
+        """
+        name = re.escape(mark) + r"[A-Za-z_]\w*"
+        return r"^#{3}[ \t]+(" + name + r"([ \t]*,[ \t]*" + name + r")*)[ \t]*$"
 
     # the name of an argument in the first cell of an argument table: a name, or a name in code
     argument_name_regex = r"(`?)([A-Za-z_]\w*)\1"
@@ -65,7 +76,8 @@ class SchelpBackend(Backend):
     header_keys = ["class", "title", "summary", "related", "categories"]
     list_keys = ["related", "categories"]
 
-    def __init__(self, insertions: dict = None):
+    def __init__(self, insertions: dict = None, bibliography=None):
+        self.bibliography = bibliography  # the path of the bibliography file for the citations, or None
         self.stash = {}
         self.insertions = dict(insertions or {})
         self.used_insertions = set()
@@ -184,6 +196,12 @@ class SchelpBackend(Backend):
 
     # the Markdown constructs that only `check_source()` finds
     list_item_regex = r"[ \t]*([-*+]|\d+[.)])[ \t]"
+    alert_mark_regex = r">\s*\[!(\w+)\]\s*$"
+    # a source in a citation: `@key`, with an optional locator after a comma. `-@key` is the form that does not
+    # name the author in the text, which has no use in a footnote: the `-` is ignored
+    citation_item_regex = r"\s*-?@([^\s,;@\]]+)(?:\s*,\s*([^;@]*?))?\s*"
+    markup_in_quote_construct = ("code, math, a link, a footnote, a citation, or bold or italic text in a block "
+                                 "quote (the quote is in italics)")
     footnote_definition_regex = r"\[\^\d+\]:"
     footnote_mark_regex = r"\[\^\d+\]"
     thematic_break_regex = r" {0,3}([-*_])([ \t]*\1){2,}[ \t]*$"
@@ -205,21 +223,33 @@ class SchelpBackend(Backend):
         if (self.code_token[0] in text or re.search(r"\*[^*\n]+\*", text)
                 or re.search(syntax.INLINE_MATH_STRICT, text)):
             self.unsupported("bold, italic text, code or math in a heading", line)
-        if re.search(syntax.LINK, text) or re.search(self.footnote_mark_regex, text):
-            self.unsupported("link or footnote in a heading", line)
+        if (re.search(syntax.LINK, text) or re.search(self.footnote_mark_regex, text)
+                or re.search(syntax.CITATION, text)):
+            self.unsupported("link, footnote or citation in a heading", line)
+
+    def _check_citation(self, citation: str, line: int = None):
+        """
+        check a citation: the text between `[` and `]`. a citation is one source or more, separated by `;`. each
+        source is a key with `@` before it, and an optional locator after a comma: `@doe1999, p. 30`.
+        """
+        if not self.bibliography:
+            self.unsupported("citation (give a bibliography to the conversion, or write the citation as text)",
+                             line)
+        for item in citation.split(";"):
+            if not re.fullmatch(self.citation_item_regex, item):
+                self.unsupported(f"citation `[{citation}]` (the forms are `[@key]`, `[@key, p. 30]` and "
+                                 "`[@key; @other]`)", line)
 
     def _check_table(self, lines: list, number: int, in_methods: bool, in_method: bool) -> int:
         """
-        check the table whose header row is `lines[number]`. a table is only possible as the argument table of a
-        method in the class methods section. the first column is the argument name, the last column its text;
-        the columns between them add `heading: value` to the text.
+        check the table whose header row is `lines[number]`. in a methods section, a table is only possible as the
+        argument table of a method: the first column is the argument name, the last column its text, and the
+        columns between them add `heading: value` to the text. outside the methods sections, a table gives
+        `table::`, with the header row in bold.
         :return: the index after the last row of the table
         """
         header_line = number + 1
-        if not in_methods:
-            self.unsupported("table (only the argument table of a method in the `## Class methods` section)",
-                             header_line)
-        if not in_method:
+        if in_methods and not in_method:
             self.unsupported("table outside a method (put a heading like `### *ar` before it)", header_line)
         end = tables.table_end(lines, number)
         for index in range(number, end):
@@ -233,21 +263,41 @@ class SchelpBackend(Backend):
         if len(tables.split_row(lines[number + 1])) != len(header):
             self.unsupported("table whose delimiter row has another number of cells than its header row",
                              header_line + 1)
+        if end == number + 2:
+            self.unsupported("table without rows", header_line)
+        for index in range(number + 2, end):
+            row = lines[index]
+            if not tables.has_pipe(row):
+                self.unsupported("line without `|` after a table (put an empty line before it)", index + 1)
+            if len(tables.split_row(row)) > len(header):
+                self.unsupported("table row with more cells than the header row", index + 1)
+        if in_methods:
+            self._check_argument_table(lines, number, end)
+        else:
+            for cell in header:
+                # the header row is bold, and SCDoc's `strong::` cannot hold other tags
+                if ("`" in cell or "*" in cell or re.search(syntax.INLINE_MATH_STRICT, cell)
+                        or re.search(syntax.LINK, cell) or re.search(self.footnote_mark_regex, cell)
+                        or re.search(syntax.CITATION, cell)):
+                    self.unsupported("code, math, a link, a footnote, a citation, or bold or italic text in the "
+                                     "header row of a table (the header row is bold)", header_line)
+        return end
+
+    def _check_argument_table(self, lines: list, number: int, end: int):
+        """
+        check the columns and the rows of the argument table from `lines[number]` (the header row) to
+        `lines[end]`.
+        """
+        header_line = number + 1
+        header = tables.split_row(lines[number])
         if len(header) < 2:
             self.unsupported("argument table with one column (the first column is the name, the last the text)",
                              header_line)
         if not all(header[1:-1]):
             self.unsupported("argument table column without a heading", header_line)
-        if end == number + 2:
-            self.unsupported("table without rows", header_line)
         names = set()
         for index in range(number + 2, end):
-            row = lines[index]
-            if not tables.has_pipe(row):
-                self.unsupported("line without `|` after a table (put an empty line before it)", index + 1)
-            cells = tables.split_row(row)
-            if len(cells) > len(header):
-                self.unsupported("table row with more cells than the header row", index + 1)
+            cells = tables.split_row(lines[index])
             name = re.fullmatch(self.argument_name_regex, cells[0])
             if not name:
                 self.unsupported(f"argument name `{cells[0]}` (a name, or a name in code)", index + 1)
@@ -256,28 +306,119 @@ class SchelpBackend(Backend):
             names.add(name[2])
             if len(cells) < len(header) or not cells[-1]:
                 self.unsupported(f"argument `{name[2]}` without text", index + 1)
-        return end
+
+    def _check_image(self, image, text: str, previous: str, following: str, line: int):
+        """
+        check an image `![caption](path)`. SCDoc shows an image as a block, thus the image must be alone in its
+        paragraph. the path is relative to the schelp file.
+        """
+        if text.strip() != image[0] or self._is_paragraph_line(previous) or self._is_paragraph_line(following):
+            self.unsupported("image in a line of text (put the image alone in a paragraph)", line)
+        problem = self.image_problem(image[1], image[2])
+        if problem:
+            self.unsupported(problem, line)
+
+    @classmethod
+    def image_problem(cls, caption: str, path: str):
+        """
+        the construct that SCDoc cannot write in an image with `caption` and `path`, or `None`. SCDoc splits the
+        tag at each `#`: path, caption, link.
+        """
+        if not path.strip() or re.match(r"[A-Za-z][A-Za-z0-9+.-]*:|/", path):
+            return "image that is not a relative path (put the image file next to the schelp file)"
+        if "#" in path or "#" in caption:
+            return "`#` in the caption or the path of an image"
+        # SCDoc shows the caption as plain text
+        if (cls.code_token[0] in caption or "`" in caption or "*" in caption
+                or re.search(syntax.INLINE_MATH_STRICT, caption) or re.search(syntax.MATH_TOKEN_REGEX, caption)
+                or re.search(r"\[[^\]]*\]", caption)):
+            return "code, math, a link, a footnote, or bold or italic text in the caption of an image"
+        return None
+
+    def _check_quote_line(self, text: str, line: int):
+        """
+        check a line of a block quote that is not an alert. the quote is in italics, and SCDoc's `emphasis::` cannot
+        hold other tags or blocks.
+        """
+        content = re.sub(r"^>[ \t]?", "", text)
+        if content.lstrip().startswith(">"):
+            self.unsupported("block quote in a block quote", line)
+        if re.match(self.list_item_regex, content):
+            self.unsupported("list in a block quote", line)
+        if re.match(syntax.HEADING_STRICT, content):
+            self.unsupported("heading in a block quote", line)
+        if (self.code_token[0] in content or "*" in content or re.search(syntax.INLINE_MATH_STRICT, content)
+                or re.search(syntax.LINK, content) or re.search(self.footnote_mark_regex, content)
+                or re.search(syntax.CITATION, content)):
+            self.unsupported(self.markup_in_quote_construct, line)
+
+    indented_regex = r"( {4}|\t)\S"
+
+    def footnote_paragraphs(self, lines: list, number: int) -> list:
+        """
+        the paragraphs of the footnote whose definition (`[^1]: text`) is `lines[number]`, as lists of line
+        indexes. the lines of a paragraph follow each other; the lines of a later paragraph have an indent of
+        4 spaces or a tab, and empty lines come before it.
+        """
+        paragraphs = [[number]]
+        index = number + 1
+        while index < len(lines):
+            line = lines[index]
+            if not line.strip():
+                following = next((i for i in range(index + 1, len(lines)) if lines[i].strip()), None)
+                if following is None or not re.match(self.indented_regex, lines[following]):
+                    break
+                paragraphs.append([following])
+                index = following + 1
+                continue
+            if re.match(self.footnote_definition_regex, line) or not (
+                    self._is_paragraph_line(line) or re.match(self.indented_regex, line)):
+                break
+            paragraphs[-1].append(index)
+            index += 1
+        return paragraphs
+
+    def join_footnotes(self, string: str) -> str:
+        """
+        put each footnote definition on one line, with a paragraph mark between its paragraphs, because the
+        converters take the first line of a footnote definition as its text. `footnote()` writes the paragraphs.
+        """
+        lines = string.split("\n")
+        out = []
+        number = 0
+        while number < len(lines):
+            if not re.match(self.footnote_definition_regex, lines[number]):
+                out.append(lines[number])
+                number += 1
+                continue
+            paragraphs = self.footnote_paragraphs(lines, number)
+            out.append(self.footnote_paragraph_mark.join(" ".join(lines[i].strip() for i in paragraph)
+                                                         for paragraph in paragraphs))
+            number = paragraphs[-1][-1] + 1
+        return "\n".join(out)
 
     def _check_method_part(self, lines: list, number: int, in_methods: bool, part):
         """
-        check a line of a method in the class methods section, after the method heading, and give the part of the
-        method that the line is in. the parts of a method are its text, its argument table and its return value,
-        in this order. SCDoc puts all text after an argument into that argument, and all text after `returns::`
-        into the return value: thus only a `Returns:` paragraph can follow the table, and nothing can follow it.
-        headings and tables are checked in `check_source()`.
+        check a line of a method in a methods section, after the method heading, and give the part of the
+        method that the line is in. the parts of a method are its text, its argument table, its return value and
+        its discussion, in this order. SCDoc puts all text after an argument into that argument, and all text after
+        `returns::` into the return value: thus only a `Returns:` paragraph or a `#### Discussion` heading can
+        follow the table, and only the heading can follow the `Returns:` paragraph. headings and tables are
+        checked in `check_source()`.
         """
         line = lines[number]
-        if (not in_methods or part is None or not line.strip() or re.match(syntax.HEADING_STRICT, line)
-                or tables.starts_table(lines, number)):
+        if (not in_methods or part in (None, "discussion") or not line.strip()
+                or re.match(syntax.HEADING_STRICT, line) or tables.starts_table(lines, number)):
             return part
         paragraph_start = number == 0 or not lines[number - 1].strip()
         if paragraph_start and line.startswith(self.returns_mark) and part != "returns":
             return "returns"
         if part == "table":
-            self.unsupported("text after the argument table of a method (only a `Returns:` paragraph can follow it)",
-                             number + 1)
+            self.unsupported("text after the argument table of a method (only a `Returns:` paragraph or a "
+                             "`#### Discussion` heading can follow it)", number + 1)
         if part == "returns" and paragraph_start:
-            self.unsupported("text after the `Returns:` paragraph of a method", number + 1)
+            self.unsupported("text after the `Returns:` paragraph of a method (put a `#### Discussion` heading "
+                             "before it)", number + 1)
         return part
 
     def check_source(self, markdown: str):
@@ -292,9 +433,11 @@ class SchelpBackend(Backend):
 
         in_code = False
         previous_is_quote = False
-        # the class methods section: in a method, the parts after the text are the argument table and then the
-        # return value. `method_part` is the last part: None (no method), "text", "table" or "returns"
-        in_methods = False
+        plain_quote = False  # whether the block quote of the last quote line is a quote, not an alert
+        # a methods section: in a method, the parts after the text are the argument table, the return value and the
+        # discussion. `method_part` is the last part: None (no method), "text", "table", "returns" or "discussion".
+        # `methods_mark` is the mark of the method names of the section (`*` or `-`), or None
+        methods_mark = None
         method_part = None
         table_end = 0  # the index after the last row of the last table
         delimiter_rows = set()
@@ -304,6 +447,7 @@ class SchelpBackend(Backend):
             fences = line.count(syntax.CODE_FENCE)
             if number in delimiter_rows:
                 continue
+            in_methods = methods_mark is not None
             if not in_code and number >= table_end:
                 method_part = self._check_method_part(lines, number, in_methods, method_part)
             if in_code:
@@ -318,10 +462,10 @@ class SchelpBackend(Backend):
                     self.unsupported("code block title", line_number)
                 if re.search(r'hl_lines="', info):
                     self.unsupported("highlighted lines in a code block", line_number)
-                # a code block can be in an admonition, not at the start of a block quote
+                # a code block can be in an alert, not in a quote: the quote is in italics
                 is_quote = line.startswith(">")
-                if is_quote and not previous_is_quote:
-                    self.unsupported("block quote", line_number)
+                if is_quote and (plain_quote or not previous_is_quote):
+                    self.unsupported("code block in a block quote", line_number)
                 previous_is_quote = is_quote
                 continue
 
@@ -337,16 +481,23 @@ class SchelpBackend(Backend):
                     if level_1_headings > 1:
                         self.unsupported("second level 1 heading (the first one is the title of the document: use level 2 for sections)", line_number)
                 if level == 2:
-                    in_methods = heading[3].strip().lower() == self.methods_section
+                    methods_mark = self.methods_sections.get(heading[3].strip().lower())
                     method_part = None
-                if in_methods and level == 3 and re.match(self.method_heading_regex, line):
+                if methods_mark and level == 3 and re.match(self.method_heading_regex(methods_mark), line):
                     method_part = "text"
-                elif in_methods and level >= 3:
-                    self.unsupported("heading in the class methods section that is not a method "
-                                     "(a method heading is like `### *ar` or `### *ar, *kr`)", line_number)
+                elif (methods_mark and method_part not in (None, "discussion")
+                      and re.match(self.discussion_heading_regex, line)):
+                    method_part = "discussion"
+                elif methods_mark and level >= 3:
+                    self.unsupported(f"heading in a methods section that is not a method or the discussion of a "
+                                     f"method (a method heading is like `### {methods_mark}ar` or "
+                                     f"`### {methods_mark}ar, {methods_mark}kr`; one `#### Discussion` heading "
+                                     f"can follow it)", line_number)
                 else:
                     self._check_heading_source(heading[3], line_number)
             if number >= table_end and tables.starts_table(lines, number):
+                if method_part == "discussion":
+                    self.unsupported("table in the discussion of a method", line_number)
                 table_end = self._check_table(lines, number, in_methods, method_part is not None)
                 delimiter_rows.add(number + 1)
                 if method_part in ("table", "returns"):
@@ -365,10 +516,11 @@ class SchelpBackend(Backend):
                 self.unsupported("line break tag", line_number)
             if re.search(syntax.AUDIO, text):
                 self.unsupported("audio file", line_number)
-            if re.search(syntax.IMAGE, text):
-                self.unsupported("image", line_number)
-            if re.search(syntax.CITATION, text):
-                self.unsupported("citation", line_number)
+            for image in re.finditer(syntax.IMAGE, text):
+                self._check_image(image, text, previous, lines[number + 1] if number + 1 < len(lines) else "",
+                                  line_number)
+            for citation in re.finditer(syntax.CITATION, text):
+                self._check_citation(citation[1], line_number)
             if re.search(self.autolink_regex, prose):
                 self.unsupported("link in `<` and `>` (write the URL alone, or use `[text](URL)`)", line_number)
             if "<!--" in prose and not re.match(syntax.INSERTION, prose):
@@ -385,19 +537,24 @@ class SchelpBackend(Backend):
             for emphasis in chain(re.finditer(syntax.BOLD, text), re.finditer(syntax.ITALIC, text)):
                 if self.code_token[0] in emphasis[1]:
                     self.unsupported("code inside bold or italic text", line_number)
-                if re.search(syntax.LINK, emphasis[1]) or re.search(self.footnote_mark_regex, emphasis[1]):
-                    self.unsupported("link or footnote inside bold or italic text", line_number)
+                if (re.search(syntax.LINK, emphasis[1]) or re.search(self.footnote_mark_regex, emphasis[1])
+                        or re.search(syntax.CITATION, emphasis[1])):
+                    self.unsupported("link, footnote or citation inside bold or italic text", line_number)
             if re.match(self.footnote_definition_regex, text):
-                following = lines[number + 1] if number + 1 < len(lines) else ""
-                after_empty = lines[number + 2] if number + 2 < len(lines) else ""
-                # the converters take only the first line of a footnote
-                if ((self._is_paragraph_line(following) and not re.match(self.footnote_definition_regex, following))
-                        or (not following.strip() and re.match(r"( {4}|\t)\S", after_empty))):
-                    self.unsupported("footnote with more than one line", line_number)
+                # the lines after the definition line
+                for index in chain.from_iterable(self.footnote_paragraphs(lines, number)):
+                    content = lines[index].strip()
+                    if index != number and not self._is_paragraph_line(content):
+                        self.unsupported("list, code block or other block in a footnote", index + 1)
 
-            is_quote = re.match(r">.+", text) is not None
-            if is_quote and not previous_is_quote and not self.admonition_tag(text):
-                self.unsupported("block quote", line_number)
+            is_quote = text.startswith(">")
+            if is_quote and not previous_is_quote:
+                if re.match(self.alert_mark_regex, text) and not self.admonition_tag(text):
+                    self.unsupported("alert of a kind that is not known (the kinds are "
+                                     + ", ".join(self.admonitions) + ")", line_number)
+                plain_quote = not self.admonition_tag(text)
+            if is_quote and plain_quote:
+                self._check_quote_line(text, line_number)
             previous_is_quote = is_quote
 
     # ------------------------------------------------------- the writers
@@ -431,7 +588,7 @@ class SchelpBackend(Backend):
         if self.code_token[0] in text or re.search(syntax.MATH_TOKEN_REGEX, text) or re.search(r"\*[^*\n]+\*", text):
             self.unsupported("bold, italic text, code or math in a heading")
         if re.search(self.tag_regex, text):
-            self.unsupported("link or footnote in a heading")
+            self.unsupported("link, footnote or citation in a heading")
         if level == 1:
             # the title of the document: it goes in the header, which escapes it
             if self.title_heading is not None:
@@ -457,7 +614,7 @@ class SchelpBackend(Backend):
                 self.unsupported("bold text and italic text inside each other")
             self.unsupported(f"bold or italic text inside {where}")
         if re.search(self.tag_regex, text):
-            self.unsupported(f"link or footnote inside {where}")
+            self.unsupported(f"link, footnote or citation inside {where}")
 
     def bold(self, text: str) -> str:
         self._check_modal(text)
@@ -478,14 +635,55 @@ class SchelpBackend(Backend):
         mark = re.match(r">\s*\[!(\w+)\]\s*$", text.split("\n", 1)[0])
         return self.admonitions.get(mark[1].upper()) if mark else None
 
+    # the character of the markers that the converters put in place of the `#` marks of a heading
+    heading_marker = "\x00"
+
+    # a line with `>` alone separates the paragraphs of a block quote
+    block_quote_regex = r"^((>.*(\n|$))+)"
+
+    def _unknown_alert(self, first_line: str):
+        """
+        stop at an alert mark of a kind that is not known.
+        """
+        if re.match(self.alert_mark_regex, first_line) and not self.admonition_tag(first_line):
+            self.unsupported("alert of a kind that is not known (the kinds are " + ", ".join(self.admonitions) + ")")
+
     def block_quote(self, text: str) -> str:
         lines = text.rstrip("\n").split("\n")
         tag = self.admonition_tag(lines[0])
         if tag is None:
-            self.unsupported("block quote")
+            self._unknown_alert(lines[0])
+            return self._quote([re.sub(r"^>[ \t]?", "", line) for line in lines])
         body = "\n".join(re.sub(r"^>[ \t]?", "", line) for line in lines[1:])
         # the empty line before the end-tag keeps a list in the body from taking the end-tag as text
         return "\n" + tag + "::\n" + body + "\n\n::\n"
+
+    def _quote(self, lines: list) -> str:
+        """
+        write a block quote that is not an alert. SCDoc has no tag for it: the paragraphs are in italics, with
+        quotation marks at the start of the first paragraph and at the end of the last one.
+        """
+        paragraphs = [p.strip("\n") for p in re.split(r"\n[ \t]*\n", "\n".join(lines)) if p.strip()]
+        for paragraph in paragraphs:
+            if re.search(r"^\s*>", paragraph, re.M):
+                self.unsupported("block quote in a block quote")
+            if re.search(r"^\s*([-+*]|\d+[.)])[ \t]", paragraph, re.M):
+                self.unsupported("list in a block quote")
+            if self.heading_marker in paragraph:
+                self.unsupported("heading in a block quote")
+            # the code of a block has more than one line; inline code has one
+            mark = re.escape(self.code_token[0])
+            if any("\n" in self.stash[token] for token in re.findall(mark + r"\d+" + mark, paragraph)):
+                self.unsupported("code block in a block quote")
+            if (self.code_token[0] in paragraph or "*" in paragraph
+                    or re.search(syntax.MATH_TOKEN_REGEX, paragraph) or re.search(self.tag_regex, paragraph)
+                    or re.search(syntax.LINK, paragraph) or re.search(self.footnote_mark_regex, paragraph)):
+                self.unsupported(self.markup_in_quote_construct)
+        if not paragraphs:
+            return ""
+        paragraphs[0] = '"' + paragraphs[0]
+        paragraphs[-1] += '"'
+        return "\n" + "\n\n".join(self._inline("emphasis", p) for p in paragraphs) + "\n"
 
     @staticmethod
     def _items(items: list, tag: str) -> str:
@@ -515,6 +713,20 @@ class SchelpBackend(Backend):
         for term, definition in entries:
             out += "## " + term.strip() + "\n|| " + definition + "\n"
         return out + "::\n\n"
+
+    supports_tables = True
+
+    def table(self, header: list, rows: list) -> str:
+        """
+        write a table. `header` is the cells of the header row, `rows` the cells of each body row; the text is
+        escaped. SCDoc has no header row: the header row is a first row in bold, and a header row with only empty
+        cells gives no row.
+        """
+        lines = []
+        if any(cell.strip() for cell in header):
+            lines.append(" || ".join(self._inline("strong", cell) if cell.strip() else "" for cell in header))
+        lines += [" || ".join(cells) for cells in rows]
+        return "\ntable::\n" + "".join("## " + line.rstrip() + "\n" for line in lines) + "::\n"
 
     def link(self, url: str, text: str) -> str:
         return self._link(url, text)
@@ -555,8 +767,163 @@ class SchelpBackend(Backend):
         # the label follows an anchor (`page#anchor#label`) or an empty anchor (`page##label`)
         return self._inline("link", target + ("#" if "#" in target else "##") + text)
 
+    def image(self, caption: str, path: str, width: str) -> str:
+        if caption == "type:audio":
+            # the converter finds an audio file as an image, as the audio syntax is the one of an image
+            self.unsupported("audio file")
+        problem = self.image_problem(caption, path)
+        if problem:
+            self.unsupported(problem)
+        # the width of an image is not part of SCDoc
+        return self._inline("image", path + ("#" + caption if caption.strip() else ""))
+
+    # ------------------------------------------------------- citations
+
+    # the citations are written before the footnotes, thus a citation in a footnote is known by its line
+    citations_before_footnotes = True
+
+    def write_citations(self, string: str) -> str:
+        """
+        replace each citation by its text. Pandoc writes the citations and the references (see `citations`).
+        a citation in the text gives a footnote: its first citation gives the reference entry of a source, with
+        the locator; a later citation gives the short form (`Doe 1999, 30.`). a citation in a footnote gives the
+        short form in parentheses, as SCDoc cannot put a footnote in a footnote.
+        """
+        found = list(re.finditer(syntax.CITATION, string))
+        if not found:
+            return string
+        for citation in found:
+            self._check_citation(citation[1])
+        string = self.join_footnotes(string)
+        found = list(re.finditer(syntax.CITATION, string))
+
+        # the citations for Pandoc: the whole citation in a footnote, else each source alone
+        requests = []  # (index of the citation, key or None)
+        sources = []
+        for index, citation in enumerate(found):
+            line_start = string.rfind("\n", 0, citation.start()) + 1
+            items = [re.fullmatch(self.citation_item_regex, item) for item in citation[1].split(";")]
+            if re.match(self.footnote_definition_regex, string[line_start:]):
+                requests.append((index, None))
+                sources.append("[" + "; ".join(self._pandoc_item(item) for item in items) + "]")
+            else:
+                for item in items:
+                    requests.append((index, item))
+                    sources.append("[" + self._pandoc_item(item) + "]")
+        texts, entries = citations.process(sources, self.bibliography)
+        missing = sorted({item[1] for _, item in requests if item} - set(entries))
+        if missing:
+            raise DocumentError("the bibliography has no entry for: " + ", ".join(missing))
+        entries = self._entries(entries)
+
+        parts = [[] for _ in found]  # the parts of each footnote, or the text of a citation in a footnote
+        in_footnote = set()
+        cited = set()
+        for (index, item), text in zip(requests, texts):
+            if item is None:
+                in_footnote.add(index)
+                parts[index].append(self._pandoc_text(text))
+            elif item[1] not in cited:
+                cited.add(item[1])
+                parts[index].append(self._with_locator(entries[item[1]], item[2]))
+            else:
+                parts[index].append(re.sub(r"^\((.*)\)$", r"\1", self._pandoc_text(text)))
+
+        out, position = [], 0
+        for index, citation in enumerate(found):
+            before = string[position:citation.start()]
+            if index in in_footnote:
+                text = parts[index][0]
+            else:
+                text = self._inline("footnote", "; ".join(part.rstrip(".") for part in parts[index]) + ".")
+                before = self._separate_footnote(before)
+            # the text is schelp already: no later step of the conversion changes it
+            out += [before, self._stash(text)]
+            position = citation.end()
+        return "".join(out) + string[position:]
+
+    @staticmethod
+    def _pandoc_item(item) -> str:
+        """
+        a source of a citation in the form of Pandoc, without the `-` before the key.
+        """
+        return "@" + item[1] + (", " + item[2] if item[2] else "")
+
+    @staticmethod
+    def _with_locator(entry: str, locator: str) -> str:
+        """
+        the reference entry with the locator at its end: a page (`30` gives `p. 30`), pages (`30-35` gives
+        `pp. 30–35`), or the locator as it is.
+        """
+        if not locator:
+            return entry
+        if re.fullmatch(r"\d+", locator):
+            locator = "p. " + locator
+        elif re.fullmatch(r"\d+\s*[-–]+\s*\d+", locator):
+            locator = "pp. " + re.sub(r"\s*[-–]+\s*", "–", locator)
+        return entry.rstrip(".") + ", " + locator + "."
+
+    def _entries(self, entries: dict) -> dict:
+        """
+        the text of each reference entry. in a list of references, the style writes `———` in place of the
+        authors of an entry that has the same authors as the entry before it; a footnote shows one entry, thus
+        the authors are written again.
+        """
+        out = {}
+        previous = ""
+        for key, inlines in entries.items():
+            text = self._pandoc_text(inlines)
+            authors = re.match(r"(.+?)\.\s(?=\d{4}|n\.d\.)", previous)
+            if text.startswith("———") and authors:
+                text = authors[1] + text[len("———"):].lstrip("—")
+            out[key] = previous = text
+        return out
+
+    def _pandoc_text(self, inlines: list, plain: bool = False) -> str:
+        """
+        write a list of Pandoc inline elements (the JSON form) as schelp. `plain` is true in a tag that cannot hold
+        other tags: then the text is written without markup.
+        """
+        out = ""
+        for inline in inlines:
+            kind, content = inline["t"], inline.get("c")
+            if kind == "Str":
+                out += self.escape(content)
+            elif kind in ("Space", "SoftBreak", "LineBreak"):
+                out += " "
+            elif kind in ("Emph", "Strong", "Underline"):
+                text = self._pandoc_text(content, plain=True)
+                out += text if plain else self._inline("strong" if kind == "Strong" else "emphasis", text)
+            elif kind == "Link":
+                text, url = self._pandoc_text(content[1], plain=True), content[2][0]
+                out += text if plain or self.link_problem(url, text) else self._link(url, text)
+            elif kind == "Code":
+                out += self.escape(content[1]) if plain else self._inline("code", content[1].replace("::", "\\::"))
+            elif kind == "Quoted":
+                marks = "“”" if content[0]["t"] == "DoubleQuote" else "‘’"
+                out += marks[0] + self._pandoc_text(content[1], plain) + marks[1]
+            elif kind == "Cite":
+                out += self._pandoc_text(content[1], plain)
+            elif kind in ("Span", "SmallCaps", "Superscript", "Subscript", "Strikeout"):
+                out += self._pandoc_text(content[-1], plain)
+            elif kind in ("Math", "RawInline"):
+                out += self.escape(content[1])
+        return out
+
+    # between the paragraphs of a footnote, until `footnote()` writes them
+    footnote_paragraph_mark = "\x06"
+
+    @staticmethod
+    def _separate_footnote(before: str) -> str:
+        """
+        the text before a footnote tag. SCDoc does not find a tag directly after a letter, but it removes the
+        space before a footnote mark: thus a space comes between a letter and the tag.
+        """
+        return before + " " if re.search(r"[^\W\d_]\Z", before) else before
+
     def footnote(self, text: str) -> str:
-        return self._inline("footnote", text)
+        # SCDoc shows the paragraphs of a footnote that are separated by an empty line
+        return self._inline("footnote", re.sub(r"\s*" + self.footnote_paragraph_mark + r"\s*", "\n\n", text))
 
     def inline_math(self, expression: str) -> str:
         return self._inline("math", expression.replace("::", "\\::"))
@@ -590,7 +957,20 @@ class SchelpBackend(Backend):
         # `inline_code()` and `code_block()` stored the code and put tokens in the text already
         return string, self.stash
 
+    # SCDoc reads letters directly before `::` as the name of a tag: `wordstrong::` is a tag `wordstrong`, which is
+    # an error. a character that is not a letter keeps the word and the tag apart. the word joiner (U+2060) is not
+    # visible and does not let a line break between them
+    word_joiner = "\u2060"
+    after_letter = r"(?<=[^\W\d_])"
+
     def clean(self, string: str) -> str:
+        # SCDoc removes a space before a footnote mark: a footnote gets a space. the footnotes of citations have it
+        # already (see `write_citations()`)
+        string = re.sub(self.after_letter + r"footnote::", " footnote::", string)
+        # the other inline tags get a word joiner. code and math are still tokens here
+        string = re.sub(self.after_letter + r"(?=(strong|emphasis|link)::|" + syntax.MATH_TOKEN_REGEX + "|"
+                        + re.escape(self.code_token[0]) + r"\d+" + re.escape(self.code_token[0]) + ")",
+                        self.word_joiner, string)
         # paragraphs are separated by one empty line; the document ends with one line ending
         string = re.sub(r"\n{3,}", "\n\n", string).strip("\n")
         return string + "\n" if string else ""

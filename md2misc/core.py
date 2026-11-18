@@ -2,7 +2,7 @@ import importlib.resources
 
 from .backends import SchelpBackend, TeXBackend
 from .errors_warnings import DocumentError
-from .converters import MDSimple, MDQuote, MDList, MDCode, MDCleaner, MDReference, MDHeader, MDFrontmatter, MDInsertion, MDMedia, MDMath, MDMethods
+from .converters import MDSimple, MDQuote, MDList, MDCode, MDCleaner, MDReference, MDHeader, MDFrontmatter, MDInsertion, MDMedia, MDMath, MDMethods, MDTable
 
 
 def default_template() -> str:
@@ -34,7 +34,7 @@ def convert(data, unnumbered=False, document_class="article", minted_language="t
     return run_pipeline(data, backend)
 
 
-def convert_schelp(data, metadata=None, insertions=None):
+def convert_schelp(data, metadata=None, insertions=None, bibliography=None):
     """
     convert Markdown-formatted text to a SuperCollider help (schelp) document.
 
@@ -47,9 +47,12 @@ def convert_schelp(data, metadata=None, insertions=None):
                      `summary`, `related` and `categories` (a list or a string with commas)
     :param insertions: a dict that maps the name of an insertion point (a line `<!-- md2misc: name -->` in the
                      text) to the schelp text that takes its place
+    :param bibliography: the path of a bibliography file for the citations (`[@key]`). the program `pandoc`
+                     writes the citations, which become footnotes. without a bibliography, a citation stops the
+                     conversion
     :return: The converted schelp markup
     """
-    backend = SchelpBackend(insertions)
+    backend = SchelpBackend(insertions, bibliography)
     front_matter, data = backend.take_front_matter(data)
     body = run_pipeline(data, backend)
     backend.check_insertions()
@@ -77,6 +80,7 @@ def run_pipeline(data, backend):
     #                                            by `prepare_markdown()`
     data = MDMethods.mark(data, backend)      #  argument tables: after code blocks, and before inline code,
     #                                            because a `\|` in inline code in a cell is a `|`
+    data = MDTable.mark(data, backend)        #  the other tables, for the same reason
     data = MDCode.inline_code(data, backend)
     data = MDInsertion.apply(data, backend)   #  text of the caller is not changed, either
     data, mathdict = MDMath.stash_math(data, backend)
@@ -89,12 +93,16 @@ def run_pipeline(data, backend):
     data = MDQuote.block_quote(data, backend)
     data = MDList.unordered_l(data, backend)
     data = MDList.ordered_l(data, backend)
+    if backend.citations_before_footnotes:
+        data = MDReference.citation(data, backend)
     data = MDReference.footnote(data, backend)
     data = MDReference.hyperlink(data, backend)
-    data = MDReference.citation(data, backend)
+    if not backend.citations_before_footnotes:
+        data = MDReference.citation(data, backend)
     data = MDList.definition_l(data, backend)
     data = MDHeader.convert(data, backend)
     data = MDMethods.convert(data, backend)
+    data = MDTable.convert(data, backend)
 
     # "simple" replacements: bold, italics and the like
     data = MDSimple.convert(data, backend)

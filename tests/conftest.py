@@ -32,3 +32,23 @@ def rendered_pages(sclang):
         return schelp_fixtures.render_all(sclang)
     except schelp_fixtures.RenderError as error:
         pytest.fail(str(error), pytrace=False)
+
+
+@pytest.fixture(scope="session")
+def pandoc():
+    """The path of pandoc. Tests that need it are skipped if it is not there."""
+    path = schelp_fixtures.find_pandoc()
+    if not path:
+        message = "pandoc not found (put it on PATH or set PANDOC)"
+        if os.environ.get("MD2MISC_REQUIRE_PANDOC"):
+            pytest.fail(message)  # a check must not pass without these tests
+        pytest.skip(message)
+    return path
+
+
+@pytest.fixture(scope="session")
+def same_pandoc_as_fixtures(pandoc):
+    """Skip a test that compares the text of citations if pandoc is not the version that made the fixtures."""
+    version, expected = schelp_fixtures.pandoc_version(pandoc), schelp_fixtures.fixture_pandoc_version()
+    if version != expected:
+        pytest.skip(f"the fixtures with citations are from pandoc {expected}, this is pandoc {version}")

@@ -12,10 +12,6 @@ from schelp_cases import UNSUPPORTED, WRITER_ONLY
 # the front matter errors come from the reading of the front matter, not from the writers
 FROM_THE_WRITERS = [case for case in UNSUPPORTED if not case[1].startswith("front matter")]
 
-# the construct that the writers name, if it is not the one that the check of the source names: the converter
-# takes an audio file for an image, as the audio syntax is the one of an image
-NAMED_BY_THE_WRITERS = {"audio file": "image"}
-
 
 @pytest.fixture
 def no_source_check(monkeypatch):
@@ -28,7 +24,7 @@ def no_source_check(monkeypatch):
 def test_writer_stops_at_the_construct(no_source_check, markdown, construct, line):
     with pytest.raises(UnsupportedConstruct) as error:
         convert_schelp(markdown)
-    assert NAMED_BY_THE_WRITERS.get(construct, construct) in error.value.message
+    assert construct in error.value.message
     assert error.value.line is None
 
 

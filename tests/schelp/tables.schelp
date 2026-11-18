@@ -1,0 +1,18 @@
+DESCRIPTION::
+
+A table with a header row, markup in the cells and a short row:
+
+table::
+## strong::Parameter:: || strong::Range:: || strong::Effect::
+## code::freq:: || 20 to 20000 || The frequency, see link::Classes/SinOsc::.
+## emphasis::Q:: || 0.1 to 100 || strong::Sharp:: with a high value.
+## mode || code::0:: | code::1:: || Two \|| bars in text.
+## gain ||  ||
+::
+
+A table without a header row:
+
+table::
+## a || b
+## c || d
+::

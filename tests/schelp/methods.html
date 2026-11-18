@@ -3,7 +3,7 @@
 <span id='folder'>Classes (extension)</span>
  | <span id='categories'><a href='./../Browse.html#Tests'>Tests</a></span>
 </div><h1>Md2miscTestMethods<div class='extension-indicator-ctr' title='This help file originates from a third-party quark or plugin for SuperCollider.'><img class='extension-indicator-icon' alt='Extension' src='./../images/plugin.png'><span class='extension-indicator-text'>Extension</span></div></h1>
-<div id='summary'>The class methods section, with argument tables</div>
+<div id='summary'>The methods sections, with argument tables and discussions</div>
 </div>
 <div class='subheader'>
 <div id='filename'>Location: <b>NOT INSTALLED!</b></div>
@@ -27,9 +27,23 @@
 <div class='method'>
 <p>Makes an instance.<h4>Returns:</h4>
 <div class='returnvalue'>
-<p>a new instance.</div></div><h3>Inherited class methods</h3>
+<p>a new instance.</div><h4>Discussion:</h4>
+
+<p>The instance plays nothing until <code>play</code> is called.</div><h3>Inherited class methods</h3>
 <div id='inheritedclassmets'></div><h2>Instance Methods</h2>
-<h3>Inherited instance methods</h3>
+<h3 class='method-code'><span class='method-prefix'>.</span><a class='method-name' name='-play' href='./../Overviews/Methods.html#play'>play</a></h3>
+<h3 class='method-code'><span class='method-prefix'>.</span><a class='method-name' name='-stop' href='./../Overviews/Methods.html#stop'>stop</a></h3>
+<div class='method'>
+<p>Starts or stops the grains.<h4>Arguments:</h4>
+<table class='arguments'>
+<tr><td class='argumentname'>fadeTime<td class='argumentdesc'>
+<p>The time of the fade, in seconds.</table><h4>Returns:</h4>
+<div class='returnvalue'>
+<p>this.</div><h4>Discussion:</h4>
+
+<p>A fade time of 0 starts at once.<div class='codeMirrorContainer'><textarea class='editor'>Md2miscTestMethods.new.play(0.1);</textarea>
+</div>
+</div><h3>Inherited instance methods</h3>
 <div id='inheritedinstmets'></div><h2>Examples</h2>
 <div class='codeMirrorContainer'><textarea class='editor'>Md2miscTestMethods.ar(0, grainDur: 0.1);</textarea>
 </div>

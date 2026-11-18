@@ -6,7 +6,9 @@ on:
   pull_request:
 
 jobs:
-  # All tests against the installed package. Without sclang, the SCDoc tests are skipped.
+  # All tests against the installed package. Without sclang, the SCDoc tests are skipped. The citation tests run
+  # with the pandoc of Ubuntu; the comparison of whole files is skipped if it is not the version in
+  # tests/schelp/PANDOC_VERSION.
   python:
     runs-on: ubuntu-24.04
     strategy:
@@ -17,6 +19,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends pandoc
       - run: python -m pip install ".[test]"
       # From another folder, so that the tests import the installed package and not the checkout
       - name: Test the installed package
@@ -32,9 +35,10 @@ jobs:
     container: debian:forky
     env:
       MD2MISC_REQUIRE_SCLANG: "1"
+      MD2MISC_REQUIRE_PANDOC: "1"
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
-      - run: apt-get update && apt-get install --yes --no-install-recommends python3 python3-venv supercollider-language
+      - run: apt-get update && apt-get install --yes --no-install-recommends python3 python3-venv supercollider-language pandoc
       - run: python3 -m venv /opt/venv && /opt/venv/bin/python -m pip install ".[test]"
       - run: /opt/venv/bin/python -m pytest -k schelp -rs

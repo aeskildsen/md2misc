@@ -115,7 +115,7 @@ class MDQuote:
         :return: the updated string representation of a markdown file
         """
         string = re.sub(
-            r"^((>.+(\n|$))+)",
+            backend.block_quote_regex,
             lambda m: backend.block_quote(m[1]),
             string, flags=re.M
         )
@@ -348,6 +348,10 @@ class MDReference:
         :param string: the string representation of a markdown file
         :param backend: the output format
         """
+        # a backend can take footnotes of more than one line or paragraph
+        join_footnotes = getattr(backend, "join_footnotes", None)
+        if join_footnotes:
+            string = join_footnotes(string)
         # the text has been escaped: the footnote marks have an escaped caret
         caret = re.escape(backend.escape("^"))
         fnote_pointers = re.finditer(r"\[" + caret + r"\d+\](?![ \t]*:)", string, flags=re.M)
@@ -441,6 +445,11 @@ class MDReference:
         :param backend: the output format
         :return: the updated string representation
         """
+
+        # a backend can write all citations of the text at once
+        write_citations = getattr(backend, "write_citations", None)
+        if write_citations:
+            return write_citations(string)
 
         # Use negative lookahead so we don't match links or images
         ref_strings = re.finditer(syntax.CITATION, string, re.M)
@@ -663,9 +672,10 @@ class MDInsertion:
 
 class MDMethods:
     """
-    the class methods section of a SuperCollider help page (`## Class methods`): method headings (`### *ar`),
-    the argument table of each method and its return value (a paragraph that starts with `Returns:`).
-    `SchelpBackend.check_source()` checks the section first, with the line numbers.
+    the methods sections of a SuperCollider help page (`## Class methods` and `## Instance methods`): method
+    headings (`### *ar` and `### -play`), the argument table of each method, its return value (a paragraph that
+    starts with `Returns:`) and its discussion (the text after a `#### Discussion` heading).
+    `SchelpBackend.check_source()` checks the sections first, with the line numbers.
 
     two steps, as for headings: `mark()` replaces the constructs by markers before the text is escaped, and
     `convert()` writes the tags after the other steps. the marker lines start with a control character, so that
@@ -694,7 +704,8 @@ class MDMethods:
     @staticmethod
     def mark(string: str, backend: Backend):
         """
-        replace the method headings, argument tables and return values of the class methods section by markers.
+        replace the method headings, argument tables, return values and discussion headings of the methods sections
+        by markers.
         :param string: the markdown text, with the code blocks taken out
         :param backend: the output format
         :return: the updated text
@@ -703,27 +714,33 @@ class MDMethods:
             return string
         lines = string.split("\n")
         out = []
-        in_methods = in_method = False
+        mark = None  # the mark of the method names of the methods section (`*` or `-`), or None
+        in_method = in_discussion = False
         number = 0
         while number < len(lines):
             line = lines[number]
             section = re.match(MDMethods.level_2_regex, line)
-            method = re.match(backend.method_heading_regex, line) if in_methods else None
+            method = re.match(backend.method_heading_regex(mark), line) if mark else None
             if section:
-                in_methods = section[1].strip().lower() == backend.methods_section
-                in_method = False
+                mark = backend.methods_sections.get(section[1].strip().lower())
+                in_method = in_discussion = False
             elif method:
                 names = ", ".join(name.strip()[1:] for name in method[1].split(","))
                 out += ["", MDMethods.marker + "METHOD" + MDMethods.marker + names, ""]
-                in_method = True
+                in_method, in_discussion = True, False
                 number += 1
                 continue
-            elif in_method and tables.starts_table(lines, number):
+            elif in_method and not in_discussion and re.match(backend.discussion_heading_regex, line):
+                out += ["", MDMethods.marker + "DISCUSSION" + MDMethods.marker, ""]
+                in_discussion = True
+                number += 1
+                continue
+            elif in_method and not in_discussion and tables.starts_table(lines, number):
                 end = tables.table_end(lines, number)
                 out += [""] + "\n\n".join(MDMethods._arguments(lines, number, end)).split("\n") + [""]
                 number = end
                 continue
-            elif (in_method and line.startswith(backend.returns_mark)
+            elif (in_method and not in_discussion and line.startswith(backend.returns_mark)
                   and (number == 0 or not lines[number - 1].strip())):
                 line = (MDMethods.marker + "RETURNS" + MDMethods.marker
                         + line[len(backend.returns_mark):].strip())
@@ -742,4 +759,69 @@ class MDMethods:
         string = re.sub(m + "METHOD" + m + "(.*)", r"METHOD::\1", string)
         string = re.sub(m + "ARGUMENT" + m + "(.*?)" + m, r"ARGUMENT::\1\n", string)
         string = re.sub(m + "RETURNS" + m, "returns::", string)
+        string = string.replace(m + "DISCUSSION" + m, "discussion::")
         return string.replace(s, "\n")
+
+
+class MDTable:
+    """
+    pipe tables of GitHub Flavored Markdown, outside the methods sections (`MDMethods` writes the argument tables).
+
+    two steps, as for headings: `mark()` replaces each table by marker lines before the text is escaped, and
+    `convert()` gives the rows to the backend after the other steps. a marker line starts with a control
+    character, so that no other step takes a cell text for a list, a quote or a heading.
+    """
+    marker = "\x04"
+    separator = "\x05"  # between the cells of a row
+    start = marker + "TABLE"
+    header = marker + "HEADER" + marker
+    row = marker + "ROW" + marker
+    end = marker + "END"
+
+    @staticmethod
+    def mark(string: str, backend: Backend):
+        """
+        replace each table by marker lines: one line for the header row, one for each body row.
+        `SchelpBackend.check_source()` checks the tables first, with the line numbers.
+        :param string: the markdown text, with the code blocks taken out and the argument tables marked
+        :param backend: the output format
+        :return: the updated text
+        """
+        if not getattr(backend, "supports_tables", False):
+            return string
+        lines = string.split("\n")
+        out = []
+        number = 0
+        while number < len(lines):
+            if not tables.starts_table(lines, number):
+                out.append(lines[number])
+                number += 1
+                continue
+            end = tables.table_end(lines, number)
+            # a `\|` in a cell is a `|`, also in code: thus this step comes before the inline code
+            rows = [[tables.unescape(cell) for cell in tables.split_row(line)] for line in lines[number:end]]
+            width = len(rows[0])
+            out += ["", MDTable.start, MDTable.header + MDTable.separator.join(rows[0])]
+            out += [MDTable.row + MDTable.separator.join(cells + [""] * (width - len(cells))) for cells in rows[2:]]
+            out += [MDTable.end, ""]
+            number = end
+        return "\n".join(out)
+
+    @staticmethod
+    def convert(string: str, backend: Backend):
+        """
+        write the tables of the marker lines of `mark()`.
+        """
+        if not getattr(backend, "supports_tables", False):
+            return string
+
+        def write(match):
+            header, rows = None, []
+            for line in match[1].split("\n"):
+                if line.startswith(MDTable.header):
+                    header = line[len(MDTable.header):].split(MDTable.separator)
+                elif line.startswith(MDTable.row):
+                    rows.append(line[len(MDTable.row):].split(MDTable.separator))
+            return backend.table(header, rows)
+
+        return re.sub(re.escape(MDTable.start) + r"\n(.*?)\n" + re.escape(MDTable.end), write, string, flags=re.S)

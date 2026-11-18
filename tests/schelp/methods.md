@@ -1,5 +1,5 @@
 ---
-summary: The class methods section, with argument tables
+summary: The methods sections, with argument tables and discussions
 categories: Tests
 ---
 
@@ -29,6 +29,30 @@ Returns: an array of two channels.
 Makes an instance.
 
 Returns: a new instance.
+
+#### Discussion
+
+The instance plays nothing until `play` is called.
+
+## Instance methods
+
+### -play, -stop
+
+Starts or stops the grains.
+
+| Argument | What it does |
+|---|---|
+| `fadeTime` | The time of the fade, in seconds. |
+
+Returns: this.
+
+#### Discussion
+
+A fade time of 0 starts at once.
+
+```supercollider
+Md2miscTestMethods.new.play(0.1);
+```
 
 ## Examples
 
