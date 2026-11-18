@@ -186,6 +186,50 @@ def test_returns_that_is_text(markdown):
     assert "Returns:" in out
 
 
+# ---------------------------------------------------------- the instance methods
+
+
+def test_instance_methods_section():
+    out = convert_schelp("## Instance methods\n\n### -play, -stop\n\nPlays it.\n\n" + TABLE
+                         + "\nReturns: this.\n")
+    assert out == ("INSTANCEMETHODS::\n\nMETHOD::play, stop\n\nPlays it.\n\n"
+                   "ARGUMENT::freq\nThe frequency.\n\nARGUMENT::amp\nThe level.\n\nreturns::this.\n")
+
+
+def test_both_methods_sections():
+    out = convert_schelp("## Class methods\n\n### *new\n\nMakes one.\n\n"
+                         "## Instance methods\n\n### -free\n\nFrees it.\n")
+    assert out == ("CLASSMETHODS::\n\nMETHOD::new\n\nMakes one.\n\n"
+                   "INSTANCEMETHODS::\n\nMETHOD::free\n\nFrees it.\n")
+
+
+def test_instance_method_heading_outside_a_methods_section_is_a_heading():
+    assert "SUBSECTION::-play" in convert_schelp("## Section\n\n### -play\n\nText.\n")
+
+
+# ------------------------------------------------------------------ the discussion
+
+
+@pytest.mark.parametrize("before", ["", TABLE + "\n", "Returns: x.\n\n", TABLE + "\nReturns: x.\n\n"],
+                         ids=["after the text", "after the table", "after the return value", "after both"])
+def test_discussion(before):
+    out = methods("### *ar\n\nText.\n\n" + before + "#### Discussion\n\nMore text.\n\n```\nx = 1;\n```\n")
+    assert out.endswith("discussion::\n\nMore text.\n\ncode::\nx = 1;\n::\n")
+    assert "SUBSUBSECTION" not in out
+
+
+def test_discussion_can_hold_any_text():
+    out = methods("### *ar\n\n" + TABLE + "\n#### discussion\n\nReturns: text here.\n\n- A list.\n\n"
+                  "> [!NOTE]\n> A note.\n\n### *kr\n\nText.\n")
+    assert "discussion::\n\nReturns: text here.\n\nLIST::\n## A list.\n::" in out
+    assert out.count("returns::") == 0
+    assert "METHOD::kr" in out
+
+
+def test_discussion_heading_outside_a_methods_section_is_a_heading():
+    assert "SUBSUBSECTION::Discussion" in convert_schelp("## Section\n\n#### Discussion\n\nText.\n")
+
+
 # ------------------------------------------------------------ the other backend
 
 

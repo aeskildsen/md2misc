@@ -36,6 +36,12 @@ class Backend:
     heading_regex = syntax.HEADING
     inline_math_regex = syntax.INLINE_MATH
 
+    # whether the citations are written before the footnotes. the default is the order of md2tex
+    citations_before_footnotes = False
+
+    # the form of a block quote: its lines start with `>`. md2tex takes a line with `>` alone as the end of the quote
+    block_quote_regex = r"^((>.+(\n|$))+)"
+
     # whether the quote marks (`>`) are removed from the lines of a code block in a block quote.
     # md2tex keeps them in the code
     strip_quote_marks_in_code = False

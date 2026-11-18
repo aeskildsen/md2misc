@@ -1,5 +1,5 @@
 CLASS::Md2miscTestMethods
-SUMMARY::The class methods section, with argument tables
+SUMMARY::The methods sections, with argument tables and discussions
 CATEGORIES::Tests
 
 DESCRIPTION::
@@ -36,6 +36,29 @@ METHOD::new
 Makes an instance.
 
 returns::a new instance.
+
+discussion::
+
+The instance plays nothing until code::play:: is called.
+
+INSTANCEMETHODS::
+
+METHOD::play, stop
+
+Starts or stops the grains.
+
+ARGUMENT::fadeTime
+The time of the fade, in seconds.
+
+returns::this.
+
+discussion::
+
+A fade time of 0 starts at once.
+
+code::
+Md2miscTestMethods.new.play(0.1);
+::
 
 EXAMPLES::
 

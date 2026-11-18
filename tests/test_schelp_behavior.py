@@ -87,7 +87,7 @@ def test_front_matter_without_an_end_is_text():
 
 def test_front_matter_keeps_the_line_numbers():
     with pytest.raises(UnsupportedConstruct) as error:
-        convert_schelp("---\ntitle: T\nsummary: S\n---\n\nText.\n\n> A block quote.\n")
+        convert_schelp("---\ntitle: T\nsummary: S\n---\n\nText.\n\n<kbd>A tag</kbd>.\n")
     assert error.value.line == 8
 
 

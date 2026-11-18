@@ -1,0 +1,11 @@
+DESCRIPTION::
+
+Wooden bars ring for a long time footnote::Doe, Jane. 1999b. emphasis::Sound and Wood::. Acme, p. 30.::, and rods too footnote::Smith, John, and Ann Lee. 2000. “Bars and Rods: A Study of Modes.” emphasis::Journal of Acoustics:: 3: 1–9. link::https://doi.org/10.1000/xyz::.::. The filter follows a known design
+footnote::Fontana, Federico. 2007. “Preserving the Digital Structure of the Moog VCF.” In emphasis::Proceedings of the International Computer Music Conference::. Copenhagen, pp. 12–14.::.
+
+The decay depends on the wood footnote::Doe 1999b, 31.::. Two sources in one citation give one footnote
+footnote::Doe, Jane. 1999a. emphasis::More Wood::. Acme; Smith and Lee 2000.::.
+
+A footnote of the author can cite a source too.footnote::As described by (Doe 1999b, 30).
+
+The second paragraph of the footnote (Smith and Lee 2000).::

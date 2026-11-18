@@ -1,0 +1,11 @@
+DESCRIPTION::
+
+An image with a caption:
+
+image::images/md2misc-test.png#A test image: one red pixel::
+
+An image without a caption, after a heading:
+
+SUBSECTION::A heading
+
+image::images/md2misc-test.png::

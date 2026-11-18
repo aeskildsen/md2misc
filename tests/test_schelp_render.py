@@ -11,7 +11,7 @@ import pytest
 
 from md2misc import convert_schelp
 from schelp_cases import RENDERS, SUPPORTED
-from schelp_fixtures import FIXTURES, RenderError, fixtures, render_texts
+from schelp_fixtures import FIXTURES, IMAGES, RenderError, fixtures, needs_pandoc, render_texts
 
 FIXTURE_FILES = fixtures()
 
@@ -28,13 +28,17 @@ SECTIONS = {
 
 
 @pytest.mark.parametrize("stem", [p.stem for p in FIXTURE_FILES])
-def test_fixture_renders_without_error(stem, rendered_pages):
+def test_fixture_renders_without_error(stem, rendered_pages, request):
+    if needs_pandoc(FIXTURES / f"{stem}.md"):
+        request.getfixturevalue("pandoc")
     # `rendered_pages` fails if SCDoc reports an error for a fixture
     assert stem in rendered_pages
 
 
 @pytest.mark.parametrize("stem", [p.stem for p in FIXTURE_FILES])
-def test_page_is_as_expected(stem, rendered_pages, same_version_as_fixtures):
+def test_page_is_as_expected(stem, rendered_pages, same_version_as_fixtures, request):
+    if needs_pandoc(FIXTURES / f"{stem}.md"):
+        request.getfixturevalue("same_pandoc_as_fixtures")
     assert rendered_pages[stem] == (FIXTURES / f"{stem}.html").read_text()
 
 
@@ -64,3 +68,10 @@ def test_case_renders(markdown, parts, rendered_cases):
         raise page
     for part in parts:
         assert part in page
+
+
+def test_scdoc_puts_the_image_next_to_the_page(sclang):
+    copied = []
+    pages = render_texts(sclang, {"image": convert_schelp("![A caption](images/md2misc-test.png)\n")}, copied=copied)
+    assert "<img src='images/md2misc-test.png'/><br><b>A caption</b>" in pages["image"]
+    assert copied == ["images/" + p.name for p in sorted(IMAGES.iterdir())]

@@ -2,14 +2,17 @@
 """
 The schelp fixtures, and what is needed to test with them.
 
-A fixture is tests/schelp/NAME.md. NAME.json is optional: {"metadata": {...}, "insertions": {...}} are the
-values that the caller of the conversion gives. Next to it are the files that the tests compare with:
+A fixture is tests/schelp/NAME.md. The files in tests/schelp/images are next to the schelp files when SCDoc renders
+them, as in a HelpSource folder. NAME.json is optional: {"metadata": {...}, "insertions": {...}} are the
+values that the caller of the conversion gives, and {"bibliography": "NAME.bib"} is the bibliography of the
+citations, relative to tests/schelp. A fixture with a bibliography needs the program pandoc. Next to it are the files that the tests compare with:
 
   NAME.schelp   the output of the converter
   NAME.html     the body of the page that SCDoc (headless sclang) renders from the output
 
 The HTML of a page changes with the version of SuperCollider. SCLANG_VERSION holds the version that made the .html
-files; the tests compare a page with its .html file only with that version.
+files; the tests compare a page with its .html file only with that version. The text of a citation can change with
+the version of Pandoc: PANDOC_VERSION holds the version that made the files of the fixtures with a bibliography.
 
 The tests are in test_schelp_*.py. This file is also a tool: it writes the .schelp and .html files again from
 the current converter. Look at the diff afterwards.
@@ -30,7 +33,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 FIXTURES = HERE / "schelp"
+IMAGES = FIXTURES / "images"
 VERSION_FILE = FIXTURES / "SCLANG_VERSION"
+PANDOC_VERSION_FILE = FIXTURES / "PANDOC_VERSION"
 
 
 class RenderError(Exception):
@@ -50,11 +55,32 @@ def options_of(md_path: Path) -> dict:
     return json.loads(options_path.read_text()) if options_path.exists() else {}
 
 
+def needs_pandoc(md_path: Path) -> bool:
+    return "bibliography" in options_of(md_path)
+
+
 def convert(md_path: Path) -> str:
     options = options_of(md_path)
+    bibliography = FIXTURES / options["bibliography"] if "bibliography" in options else None
     return importlib.import_module("md2misc").convert_schelp(
-        md_path.read_text(), options.get("metadata"), options.get("insertions")
+        md_path.read_text(), options.get("metadata"), options.get("insertions"), bibliography
     )
+
+
+def find_pandoc():
+    """The path of pandoc, or `None`."""
+    return os.environ.get("PANDOC") or shutil.which("pandoc")
+
+
+def pandoc_version(pandoc: str) -> str:
+    """The version of pandoc, for example `3.7.0.2`."""
+    done = subprocess.run([pandoc, "--version"], capture_output=True, text=True, timeout=60)
+    return done.stdout.split("\n", 1)[0].split()[-1]
+
+
+def fixture_pandoc_version() -> str:
+    """The version of pandoc that made the files of the fixtures with a bibliography."""
+    return PANDOC_VERSION_FILE.read_text().strip()
 
 
 def body_of(html: str) -> str:
@@ -87,11 +113,13 @@ def fixture_version() -> str:
     return VERSION_FILE.read_text().strip()
 
 
-def render_texts(sclang: str, texts: dict, timeout: int = 180) -> dict:
+def render_texts(sclang: str, texts: dict, timeout: int = 180, copied: list = None) -> dict:
     """
     Render schelp texts with SCDoc, in one run of sclang. `texts` maps a name (letters, digits and `-`) to a
     schelp text. A text without a header gets a test header. Return, by name, the body of the HTML page, or a
     `RenderError` with the errors of SCDoc for that text.
+    The files of tests/schelp/images are in the folder `images` next to the schelp files. If `copied` is a list, it
+    gets the paths of these files that SCDoc put next to the HTML pages.
     """
     results = {}
     with tempfile.TemporaryDirectory(prefix="md2misc-scdoc-") as tmp:
@@ -99,6 +127,7 @@ def render_texts(sclang: str, texts: dict, timeout: int = 180) -> dict:
         data = tmp / "data"
         source = data / "SuperCollider/Extensions/md2misc-tests/HelpSource/Reference"
         source.mkdir(parents=True)
+        shutil.copytree(IMAGES, source / "images")
         (tmp / "home").mkdir()
         keys = {}  # the key of the page in SCDoc, by name
         for name, text in texts.items():
@@ -151,12 +180,20 @@ def render_texts(sclang: str, texts: dict, timeout: int = 180) -> dict:
                 results[name] = RenderError(f"SCDoc wrote no page for {name}\n" + done.stdout[-2000:])
             else:
                 results[name] = body_of(html_path.read_text())
+        if copied is not None:
+            help_images = data / "SuperCollider/Help/Reference/images"
+            copied += sorted(str(p.relative_to(help_images.parent)) for p in help_images.rglob("*") if p.is_file())
     return results
 
 
 def render_all(sclang: str, timeout: int = 180) -> dict:
-    """Render every fixture with SCDoc. Return the body of each HTML page, by fixture name."""
-    results = render_texts(sclang, {md_path.stem: convert(md_path) for md_path in fixtures()}, timeout)
+    """
+    Render every fixture with SCDoc. Return the body of each HTML page, by fixture name. Without pandoc, the
+    fixtures with a bibliography are not rendered.
+    """
+    with_pandoc = find_pandoc() is not None
+    results = render_texts(sclang, {md_path.stem: convert(md_path) for md_path in fixtures()
+                                    if with_pandoc or not needs_pandoc(md_path)}, timeout)
     errors = [f"{name}: {result}" for name, result in results.items() if isinstance(result, RenderError)]
     if errors:
         raise RenderError("\n".join(errors))
@@ -169,11 +206,15 @@ def update(args):
     sclang = find_sclang(args.sclang)
     if not sclang:
         raise SystemExit("sclang not found. Put it on PATH, set SCLANG or use --sclang.")
+    pandoc = find_pandoc()
+    if not pandoc:
+        raise SystemExit("pandoc not found. Put it on PATH or set PANDOC.")
     for md_path in fixtures():
         md_path.with_suffix(".schelp").write_text(convert(md_path))
     for stem, body in render_all(sclang).items():
         (FIXTURES / f"{stem}.html").write_text(body)
     VERSION_FILE.write_text(sclang_version(sclang) + "\n")
+    PANDOC_VERSION_FILE.write_text(pandoc_version(pandoc) + "\n")
     print("written; look at the diff")
 
 

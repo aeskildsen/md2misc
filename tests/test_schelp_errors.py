@@ -23,10 +23,10 @@ def test_unsupported_construct_stops_the_conversion(markdown, construct, line):
 
 def test_error_names_the_file_and_the_line():
     with pytest.raises(UnsupportedConstruct) as error:
-        convert_schelp("Text.\n\n> A quote.\n")
-    assert str(error.value) == "line 3: the schelp output cannot write this Markdown construct: block quote"
+        convert_schelp("Text.\n\n---\n")
+    assert str(error.value) == "line 3: the schelp output cannot write this Markdown construct: horizontal rule"
     assert error.value.describe("page.md") == \
-        "page.md:3: the schelp output cannot write this Markdown construct: block quote"
+        "page.md:3: the schelp output cannot write this Markdown construct: horizontal rule"
 
 
 @pytest.mark.parametrize("markdown, metadata, insertions, message", DOCUMENT_ERRORS,
